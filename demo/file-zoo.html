@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PRAXXYS Autofill — file zoo</title>
+        <style>
+            :root { color-scheme: light; }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0; padding: 32px 20px 80px; background: #f5f3ff; color: #1f2937;
+                font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px;
+            }
+            main { max-width: 760px; margin: 0 auto; }
+            h1 { font-size: 20px; margin: 0 0 4px; }
+            p.lede { margin: 0 0 24px; color: #6b7280; }
+            form { display: grid; gap: 16px; }
+            .field { display: grid; gap: 6px; }
+            label { font-weight: 600; font-size: 12px; color: #374151; }
+            input[type='file'] { width: 100%; padding: 10px; border: 1px dashed #a78bfa; border-radius: 8px; background: #fff; }
+            pre { margin: 24px 0 0; padding: 14px; border-radius: 10px; background: #111827; color: #a5f3fc; font-size: 11px; max-height: 320px; overflow: auto; }
+            .hint { color: #6b7280; font-size: 11px; font-weight: 400; }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>PRAXXYS Autofill — file zoo</h1>
+            <p class="lede">Each input declares a different <code>accept</code> value. Fill with Scope = All fields.</p>
+
+            <form id="zoo" autocomplete="off">
+                <div class="field">
+                    <label for="f1">Image any <span class="hint">accept="image/*"</span></label>
+                    <input id="f1" name="f1" type="file" accept="image/*" />
+                </div>
+                <div class="field">
+                    <label for="f2">PDF only <span class="hint">accept="application/pdf"</span></label>
+                    <input id="f2" name="f2" type="file" accept="application/pdf" />
+                </div>
+                <div class="field">
+                    <label for="f3">Office <span class="hint">accept=".docx,.xlsx,.pptx"</span></label>
+                    <input id="f3" name="f3" type="file" accept=".docx,.xlsx,.pptx" />
+                </div>
+                <div class="field">
+                    <label for="f4">Mixed <span class="hint">accept="image/*,.pdf,text/csv"</span></label>
+                    <input id="f4" name="f4" type="file" accept="image/*,.pdf,text/csv" />
+                </div>
+                <div class="field">
+                    <label for="f5">Video <span class="hint">accept="video/*"</span></label>
+                    <input id="f5" name="f5" type="file" accept="video/*" />
+                </div>
+                <div class="field">
+                    <label for="f6">Photo (mixed accept) <span class="hint">accept="image/*,.pdf"</span></label>
+                    <input id="f6" name="f6" type="file" accept="image/*,.pdf" />
+                </div>
+                <div class="field">
+                    <label for="f7">Empty accept <span class="hint">no accept attribute</span></label>
+                    <input id="f7" name="f7" type="file" />
+                </div>
+                <div class="field">
+                    <label for="f8">Multiple mixed <span class="hint">accept="image/*,.pdf" multiple</span></label>
+                    <input id="f8" name="f8" type="file" accept="image/*,.pdf" multiple />
+                </div>
+            </form>
+
+            <pre id="log">files…</pre>
+        </main>
+
+        <script>
+            const log = document.getElementById('log');
+            const form = document.getElementById('zoo');
+
+            form.addEventListener('change', (event) => {
+                const input = event.target;
+                if (!(input instanceof HTMLInputElement) || input.type !== 'file') return;
+                const files = [...input.files].map((file) => ({
+                    name: file.name,
+                    type: file.type,
+                    kb: Math.round(file.size / 1024),
+                }));
+                log.textContent = `${input.id} (accept="${input.accept}"):\n${JSON.stringify(files, null, 2)}\n\n${log.textContent}`.slice(0, 12000);
+            });
+        </script>
+    </body>
+</html>

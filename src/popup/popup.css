@@ -1,0 +1,182 @@
+:root {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    width: 340px;
+    background: #0b1020;
+    color: #e5e7eb;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 12px;
+}
+
+.shell {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 4px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+}
+
+.origin {
+    margin: 2px 0 0;
+    color: #9ca3af;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dot {
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    flex: none;
+}
+
+.dot.off {
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.row.stack {
+    align-items: start;
+    grid-template-columns: 1fr;
+}
+
+label {
+    color: #9ca3af;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    background: #111827;
+    border: 1px solid #374151;
+    border-radius: 7px;
+    color: #f9fafb;
+    padding: 7px 8px;
+    font: inherit;
+    outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #7c3aed;
+}
+
+input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    justify-self: start;
+    accent-color: #7c3aed;
+}
+
+textarea {
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+}
+
+.actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+button {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button.primary {
+    background: #6d28d9;
+    color: #ffffff;
+}
+
+button.primary:hover {
+    background: #7c3aed;
+}
+
+button.ghost {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.enable {
+    background: #b45309;
+    color: #fffbeb;
+}
+
+.status {
+    margin: 0;
+    min-height: 16px;
+    color: #c7d2fe;
+    font-size: 11px;
+}
+
+.hint {
+    margin: 0;
+    color: #6b7280;
+    font-size: 10px;
+}
+
+.shortcut {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+button.link {
+    background: transparent;
+    color: #c4b5fd;
+    padding: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+}
+
+button.link:hover {
+    color: #ddd6fe;
+}

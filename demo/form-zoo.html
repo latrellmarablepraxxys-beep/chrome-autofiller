@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PRAXXYS Autofill — form zoo</title>
+        <style>
+            :root { color-scheme: light; }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0;
+                padding: 32px 20px 80px;
+                background: #f5f3ff;
+                color: #1f2937;
+                font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+                font-size: 14px;
+            }
+            main { max-width: 760px; margin: 0 auto; }
+            h1 { font-size: 20px; margin: 0 0 4px; }
+            p.lede { margin: 0 0 24px; color: #6b7280; }
+            form { display: grid; gap: 18px; }
+            .field { display: grid; gap: 6px; }
+            label { font-weight: 600; font-size: 12px; color: #374151; }
+            input, select, textarea, button.trigger {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: #ffffff;
+                font: inherit;
+                text-align: left;
+            }
+            button.trigger { cursor: pointer; }
+            button.trigger[aria-expanded='true'] { border-color: #7c3aed; }
+            .popover, .vs__dropdown-menu, .multiselect__content-wrapper {
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: #ffffff;
+                margin-top: 4px;
+                overflow: hidden;
+            }
+            [role='option'], .vs__dropdown-option, .multiselect__option {
+                padding: 9px 12px;
+                cursor: pointer;
+            }
+            [role='option']:hover, .vs__dropdown-option:hover, .multiselect__option:hover {
+                background: #ede9fe;
+            }
+            .multiselect__option--selected { background: #ddd6fe; font-weight: 600; }
+            .multiselect__tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+            .tag { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+            .multiselect__input, .vs__search { border: 0; padding: 8px 0; width: 100%; }
+            .ck-editor__editable, .tiptap {
+                min-height: 130px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: #ffffff;
+                padding: 12px;
+            }
+            .ck-editor__editable:focus, .tiptap:focus { outline: 2px solid #a78bfa; }
+            .dropzone {
+                border: 2px dashed #c4b5fd;
+                border-radius: 10px;
+                padding: 18px;
+                text-align: center;
+                color: #6b7280;
+                cursor: pointer;
+                background: #ffffff;
+            }
+            .dropzone img { max-height: 90px; border-radius: 6px; margin-top: 10px; }
+            .switch {
+                width: 52px; height: 28px; border-radius: 999px; border: 0;
+                background: #d1d5db; position: relative; cursor: pointer; padding: 0;
+            }
+            .switch[aria-checked='true'] { background: #7c3aed; }
+            .switch span {
+                position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+                border-radius: 999px; background: #ffffff; transition: left 0.15s ease;
+            }
+            .switch[aria-checked='true'] span { left: 27px; }
+            .inline { display: flex; gap: 14px; align-items: center; }
+            .inline label { display: flex; gap: 6px; align-items: center; font-weight: 400; }
+            .inline input { width: auto; }
+            pre {
+                margin: 24px 0 0; padding: 14px; border-radius: 10px; background: #111827;
+                color: #a5f3fc; font-size: 11px; max-height: 220px; overflow: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>PRAXXYS Autofill — form zoo</h1>
+            <p class="lede">
+                Plain-DOM replicas of the admin and web field shapes. Serve over
+                <code>http://localhost:8090/demo/form-zoo.html</code> so the extension injects.
+            </p>
+
+            <form id="zoo" autocomplete="off">
+                <div class="field">
+                    <label for="title">Title <span style="color: #dc2626">*</span></label>
+                    <input id="title" name="title" required maxlength="120" />
+                </div>
+
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">Select status</option>
+                        <option value="active">Active</option>
+                        <option value="draft">Draft</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="published-at">Published at</label>
+                    <input id="published-at" name="published_at" type="date" />
+                </div>
+
+                <div class="field">
+                    <label for="price">Price</label>
+                    <input id="price" name="price" type="number" min="1" max="9999" step="0.01" />
+                </div>
+
+                <div class="field">
+                    <label id="category-label">Category <span style="color: #dc2626">*</span></label>
+                    <button type="button" class="trigger" role="combobox" aria-expanded="false" aria-labelledby="category-label">
+                        Select category
+                    </button>
+                    <div class="popover" hidden>
+                        <div role="listbox">
+                            <div role="option" data-value="1">Beverages</div>
+                            <div role="option" data-value="2">Bakery</div>
+                            <div role="option" data-value="3">Condiments</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Tags</label>
+                    <div class="multiselect">
+                        <div class="multiselect__tags">
+                            <span class="tags"></span>
+                            <input class="multiselect__input" placeholder="Select tags" />
+                        </div>
+                        <div class="multiselect__content-wrapper" hidden>
+                            <ul class="multiselect__content" style="list-style: none; margin: 0; padding: 0">
+                                <li class="multiselect__option">Coffee</li>
+                                <li class="multiselect__option">Dessert</li>
+                                <li class="multiselect__option">Seasonal</li>
+                                <li class="multiselect__option">Promo</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Author</label>
+                    <div class="v-select">
+                        <div class="vs__dropdown-toggle">
+                            <input class="vs__search" placeholder="Search author" />
+                        </div>
+                        <ul class="vs__dropdown-menu" hidden style="list-style: none; padding: 0">
+                            <li class="vs__dropdown-option">Maria Santos</li>
+                            <li class="vs__dropdown-option">Jose Reyes</li>
+                            <li class="vs__dropdown-option">Ana Dela Cruz</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Body (TipTap shape)</label>
+                    <div class="tiptap-editor">
+                        <div class="tiptap ProseMirror" contenteditable="true" data-editor="tiptap"></div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Body (CKEditor shape)</label>
+                    <div class="ck-editor">
+                        <div class="ck-editor__editable" contenteditable="true" data-editor="ckeditor"></div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Cover image</label>
+                    <div class="dropzone">
+                        <div>Select a file or drag and drop</div>
+                        <div style="font-size: 11px">Files (PNG, JPEG) up to 2MB</div>
+                        <input type="file" accept="image/png,image/jpeg" style="display: none" />
+                        <img alt="preview" hidden />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Published</label>
+                    <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Published">
+                        <span></span>
+                    </button>
+                </div>
+
+                <div class="field">
+                    <label>Archived</label>
+                    <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Archived">
+                        <span></span>
+                    </button>
+                </div>
+
+                <div class="field">
+                    <label>Visibility</label>
+                    <div class="inline">
+                        <label><input type="radio" name="visibility" value="public" /> Public</label>
+                        <label><input type="radio" name="visibility" value="private" /> Private</label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Gender <span style="color: #dc2626">*</span></label>
+                    <div class="inline" role="radiogroup">
+                        <button type="button" role="radio" id="radio_male" aria-checked="false"></button>
+                        <label for="radio_male">Male</label>
+                        <button type="button" role="radio" id="radio_female" aria-checked="false"></button>
+                        <label for="radio_female">Female</label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="age">Age <span style="color: #dc2626">*</span></label>
+                    <input id="age" name="age" inputmode="numeric" />
+                </div>
+
+                <div class="field">
+                    <label>Active</label>
+                    <button type="button" role="checkbox" aria-checked="false" aria-label="Active" style="width: 20px; height: 20px; padding: 0; border-radius: 4px"></button>
+                </div>
+
+                <div class="field">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" rows="3"></textarea>
+                </div>
+            </form>
+
+            <pre id="log">events…</pre>
+        </main>
+
+        <script>
+            const log = document.getElementById('log');
+            const write = (message) => {
+                log.textContent = `${new Date().toLocaleTimeString()}  ${message}\n${log.textContent}`.slice(0, 6000);
+            };
+
+            const form = document.getElementById('zoo');
+            form.addEventListener('input', (event) => {
+                const target = event.target;
+                write(`input ${target.name || target.className || target.tagName} = ${String(target.value ?? '').slice(0, 60)}`);
+            });
+            form.addEventListener('change', (event) => {
+                const target = event.target;
+                write(`change ${target.name || target.className || target.tagName}`);
+            });
+
+            // reka-shaped combobox
+            const combobox = document.querySelector('[role="combobox"]');
+            const popover = document.querySelector('.popover');
+            combobox.addEventListener('click', () => {
+                const open = combobox.getAttribute('aria-expanded') === 'true';
+                combobox.setAttribute('aria-expanded', String(!open));
+                popover.hidden = open;
+            });
+            document.querySelectorAll('[role="option"]').forEach((option) => {
+                option.addEventListener('click', () => {
+                    combobox.textContent = option.textContent;
+                    combobox.dataset.value = option.dataset.value;
+                    combobox.setAttribute('aria-expanded', 'false');
+                    popover.hidden = true;
+                });
+            });
+
+            // vue-multiselect shape
+            const multi = document.querySelector('.multiselect');
+            const multiMenu = multi.querySelector('.multiselect__content-wrapper');
+            const multiTags = multi.querySelector('.tags');
+            multi.querySelector('.multiselect__tags').addEventListener('click', () => {
+                multiMenu.hidden = !multiMenu.hidden;
+            });
+            multi.querySelectorAll('.multiselect__option').forEach((option) => {
+                option.addEventListener('click', () => {
+                    if (option.classList.contains('multiselect__option--selected')) return;
+                    option.classList.add('multiselect__option--selected');
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.textContent = option.textContent;
+                    multiTags.appendChild(tag);
+                });
+            });
+
+            // vue-select shape
+            const vSelect = document.querySelector('.v-select');
+            const vToggle = vSelect.querySelector('.vs__dropdown-toggle');
+            const vMenu = vSelect.querySelector('.vs__dropdown-menu');
+            const vSearch = vSelect.querySelector('.vs__search');
+            vToggle.addEventListener('click', () => {
+                vMenu.hidden = false;
+                vSearch.focus();
+            });
+            vSearch.addEventListener('input', () => {
+                const needle = vSearch.value.toLowerCase();
+                vSelect.querySelectorAll('.vs__dropdown-option').forEach((option) => {
+                    option.hidden = Boolean(needle) && !option.textContent.toLowerCase().includes(needle);
+                });
+            });
+            vSelect.querySelectorAll('.vs__dropdown-option').forEach((option) => {
+                option.addEventListener('click', () => {
+                    vSearch.value = option.textContent;
+                    vMenu.hidden = true;
+                    write(`author = ${option.textContent}`);
+                });
+            });
+
+            // editors: emulate the framework paste handler
+            document.querySelectorAll('[data-editor]').forEach((editor) => {
+                editor.addEventListener('paste', (event) => {
+                    event.preventDefault();
+                    const html = event.clipboardData && event.clipboardData.getData('text/html');
+                    if (html) {
+                        editor.innerHTML = html;
+                        write(`${editor.dataset.editor} pasted html (${html.length} bytes)`);
+                    }
+                });
+            });
+
+            // file input preview
+            const fileInput = document.querySelector('input[type="file"]');
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) return;
+                const image = document.querySelector('.dropzone img');
+                image.src = URL.createObjectURL(file);
+                image.hidden = false;
+                write(`file ${file.name} ${file.type} ${Math.round(file.size / 1024)}KB`);
+            });
+
+            // switches
+            document.querySelectorAll('[role="switch"]').forEach((element) => {
+                element.addEventListener('click', () => {
+                    const next = element.getAttribute('aria-checked') !== 'true';
+                    element.setAttribute('aria-checked', String(next));
+                    write(`switch ${element.getAttribute('aria-label')} = ${next}`);
+                });
+            });
+
+            // reka-shaped radio group
+            document.querySelectorAll('[role="radio"]').forEach((element) => {
+                element.addEventListener('click', () => {
+                    document
+                        .querySelectorAll('[role="radio"]')
+                        .forEach((item) => item.setAttribute('aria-checked', 'false'));
+                    element.setAttribute('aria-checked', 'true');
+                    write(`radio ${element.id} = true`);
+                });
+            });
+
+            // reka-shaped checkbox
+            document.querySelectorAll('[role="checkbox"]').forEach((element) => {
+                element.addEventListener('click', () => {
+                    const next = element.getAttribute('aria-checked') !== 'true';
+                    element.setAttribute('aria-checked', String(next));
+                    write(`checkbox ${element.getAttribute('aria-label')} = ${next}`);
+                });
+            });
+        </script>
+    </body>
+</html>

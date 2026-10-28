@@ -1,0 +1,25 @@
+{
+    "name": "praxxys-autofill",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "PRAXXYS QA autofill extension for admin and web forms.",
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "build": "tsc --noEmit && vite build && vite build --config vite.content.config.ts && vite build --config vite.main.config.ts && node scripts/copy-manifest.mjs",
+        "dev": "node scripts/watch.mjs",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "devDependencies": {
+        "@types/chrome": "^0.0.287",
+        "@types/node": "^26.6.5",
+        "happy-dom": "^16.7.2",
+        "typescript": "^5.7.2",
+        "vite": "^6.0.7",
+        "vitest": "^3.0.5"
+    }
+}

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PRAXXYS Autofill</title>
+        <link rel="stylesheet" href="/src/popup/popup.css" />
+    </head>
+    <body>
+        <main class="shell">
+            <header class="head">
+                <div>
+                    <h1>PRAXXYS Autofill</h1>
+                    <p id="origin" class="origin">checking page…</p>
+                </div>
+                <span class="dot" id="dot"></span>
+            </header>
+
+            <section class="row">
+                <label for="seed">Seed</label>
+                <input id="seed" type="number" min="1" step="1" />
+            </section>
+
+            <section class="row">
+                <label for="repeatable">Repeatable</label>
+                <input id="repeatable" type="checkbox" />
+            </section>
+
+            <section class="row">
+                <label for="scope">Scope</label>
+                <select id="scope">
+                    <option value="required">Required + content</option>
+                    <option value="all">All fields</option>
+                </select>
+            </section>
+
+            <section class="row">
+                <label for="dropdown">Dropdowns</label>
+                <select id="dropdown">
+                    <option value="first">First valid option</option>
+                    <option value="random">Random valid option</option>
+                    <option value="profile">Profile match, else first</option>
+                </select>
+            </section>
+
+            <section class="row stack">
+                <label for="profile">Profile overrides (JSON)</label>
+                <textarea id="profile" rows="3" spellcheck="false" placeholder='{ "Email": "qa@praxxys.test" }'></textarea>
+            </section>
+
+            <section class="actions">
+                <button id="fill" class="primary">Fill form</button>
+                <button id="inspect" class="ghost">Inspect</button>
+            </section>
+
+            <button id="enable" class="enable" hidden>Enable on this origin</button>
+
+            <p id="status" class="status">Ready.</p>
+            <p id="shortcut" class="shortcut">Shortcut: …</p>
+            <button id="shortcutButton" class="link">Change shortcut</button>
+            <p class="hint">⌥⇧B / Alt+Shift+B fills. Right-click → PRAXXYS Autofill. It never saves or submits.</p>
+        </main>
+        <script type="module" src="/src/popup/popup.ts"></script>
+    </body>
+</html>

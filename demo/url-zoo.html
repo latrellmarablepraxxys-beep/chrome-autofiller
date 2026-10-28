@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PRAXXYS Autofill — URL zoo</title>
+        <style>
+            :root { color-scheme: light; }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0; padding: 32px 20px 80px; background: #f5f3ff; color: #1f2937;
+                font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px;
+            }
+            main { max-width: 760px; margin: 0 auto; }
+            h1 { font-size: 20px; margin: 0 0 4px; }
+            p.lede { margin: 0 0 24px; color: #6b7280; }
+            form { display: grid; gap: 14px; }
+            .field { display: grid; gap: 6px; }
+            label { font-weight: 600; font-size: 12px; color: #374151; }
+            input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font: inherit; }
+            pre { margin: 24px 0 0; padding: 14px; border-radius: 10px; background: #111827; color: #a5f3fc; font-size: 11px; max-height: 320px; overflow: auto; }
+            .hint { color: #6b7280; font-size: 11px; font-weight: 400; }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>PRAXXYS Autofill — URL zoo</h1>
+            <p class="lede">Fill with Scope = All fields. Watch the platform-specific URLs and the paired coordinates.</p>
+
+            <form id="zoo" autocomplete="off">
+                <div class="field">
+                    <label for="video">Video Link <span class="hint">type=url</span></label>
+                    <input id="video" name="video_link" type="url" />
+                </div>
+                <div class="field">
+                    <label for="embed">Video Embed <span class="hint">text</span></label>
+                    <input id="embed" name="video_embed" type="text" />
+                </div>
+                <div class="field">
+                    <label for="vimeo">Vimeo URL <span class="hint">type=url</span></label>
+                    <input id="vimeo" name="vimeo_url" type="url" />
+                </div>
+                <div class="field">
+                    <label for="map">Google Maps Link <span class="hint">type=url</span></label>
+                    <input id="map" name="map_link" type="url" />
+                </div>
+                <div class="field">
+                    <label for="mapEmbed">Map Embed <span class="hint">text</span></label>
+                    <input id="mapEmbed" name="map_embed" type="text" />
+                </div>
+                <div class="field">
+                    <label for="lat">Latitude <span class="hint">type=number</span></label>
+                    <input id="lat" name="latitude" type="number" step="0.000001" />
+                </div>
+                <div class="field">
+                    <label for="lng">Longitude <span class="hint">type=number</span></label>
+                    <input id="lng" name="longitude" type="number" step="0.000001" />
+                </div>
+                <div class="field">
+                    <label for="coords">Coordinates <span class="hint">text</span></label>
+                    <input id="coords" name="coordinates" type="text" />
+                </div>
+                <div class="field">
+                    <label for="fb">Facebook Page <span class="hint">type=url</span></label>
+                    <input id="fb" name="facebook" type="url" />
+                </div>
+                <div class="field">
+                    <label for="site">Website <span class="hint">type=url</span></label>
+                    <input id="site" name="website" type="url" />
+                </div>
+            </form>
+
+            <pre id="log">values…</pre>
+        </main>
+
+        <script>
+            const log = document.getElementById('log');
+            const form = document.getElementById('zoo');
+
+            form.addEventListener('input', () => {
+                log.textContent = `${new Date().toLocaleTimeString()}\n` + [...form.querySelectorAll('input')]
+                    .map((input) => `${input.name}: ${input.value}`)
+                    .join('\n');
+            });
+        </script>
+    </body>
+</html>
