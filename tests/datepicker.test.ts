@@ -267,5 +267,6 @@ describe('date picker filling', () => {
         expect(outcome.status).toBe('filled');
         expect(outcome.strategy).toBe('native-date');
         expect(input.value).toBe('2026-10-29');
+        expect(document.activeElement).toBe(input);
     });
 });

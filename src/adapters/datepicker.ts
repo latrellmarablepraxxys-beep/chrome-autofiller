@@ -249,8 +249,6 @@ async function fillViaText(
         setNativeValue(input, formatDateTokens(target, pattern));
         pressKey(input, 'Enter');
         await sleep(90);
-        input.blur();
-        await sleep(90);
 
         const value = input.value;
         if (dateLooksApplied(value, iso)) return ok('date-text', value);
@@ -273,7 +271,6 @@ export async function fillDatePicker(
     if (el instanceof HTMLInputElement && el.type === 'date') {
         el.focus();
         setNativeValue(el, iso);
-        el.blur();
         return el.value ? ok('native-date', el.value) : fail('value did not apply');
     }
 
