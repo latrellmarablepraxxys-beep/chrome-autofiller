@@ -1,4 +1,6 @@
 import type { DetectedControl } from '../shared/types';
+import { dateFromIso, formatDateTokens } from '../shared/dateformat';
+import { isDatePickerInput } from '../shared/picker';
 import { Rng } from '../shared/random';
 import { slugify } from '../shared/slug';
 import type { Semantic } from './lexicon';
@@ -418,16 +420,16 @@ export function sampleImageDataUri(): string {
     return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
+/** Format an ISO date the way a control expects to receive it. */
 export function formatDateForControl(value: string, control: DetectedControl): string {
     const el = control.el as HTMLInputElement;
     if (el.type === 'date') return value;
 
-    const date = new Date(`${value}T00:00:00`);
-    const month = date.toLocaleString('en-US', { month: 'short' });
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
+    const date = dateFromIso(value) ?? new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
 
-    if (el.classList.contains('dp__input')) return `${month} ${day}, ${year}`;
+    // vue-datepicker's default input format is `MM/dd/yyyy`.
+    if (isDatePickerInput(el)) return formatDateTokens(date, 'MM/dd/yyyy');
 
-    return `${year}-${month}-${day}`;
+    return formatDateTokens(date, 'yyyy-MM-dd');
 }

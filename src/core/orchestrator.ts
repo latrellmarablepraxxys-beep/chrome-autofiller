@@ -13,6 +13,7 @@ import { detectModule } from './module';
 import { ADDRESS_SEMANTICS, type Semantic } from './lexicon';
 import { annotateControl, clearInspection, scanControls } from './scanner';
 import { fillText } from '../adapters/text';
+import { fillDatePicker } from '../adapters/datepicker';
 import { fillCheckbox, fillNativeSelect, fillRadio, fillToggle } from '../adapters/choice';
 import { fillReka } from '../adapters/reka';
 import { fillVueMultiselect } from '../adapters/vue-multiselect';
@@ -35,6 +36,10 @@ function inScope(
     if (options.scope === 'all') return true;
     if (control.required) return true;
     if (control.kind === 'ckeditor' || control.kind === 'tiptap') return true;
+
+    // Dates are cheap and always expected in QA data; pickers rarely expose
+    // the `required` attribute, so scope them in explicitly.
+    if (control.kind === 'date') return true;
 
     // Business-required fields that the UI does not always mark with `*`.
     const semantic = classify(control, module);
@@ -130,6 +135,15 @@ async function fillControl(
 
             case 'file':
                 return { outcome: await fillFile(control, rng), semantic };
+
+            case 'date':
+                return {
+                    outcome: await fillDatePicker(
+                        control,
+                        profile ?? generateValue('date', control, rng, generation),
+                    ),
+                    semantic,
+                };
 
             case 'native-select':
                 return {

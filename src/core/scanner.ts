@@ -1,5 +1,6 @@
 import type { ControlKind, DetectedControl } from '../shared/types';
 import { cleanLabel, fieldKey, isVisible, normalizeText, readLabel } from '../shared/dom';
+import { insideDatePickerMenu, isDatePickerInput } from '../shared/picker';
 
 const CANDIDATE_SELECTOR = [
     'input',
@@ -27,10 +28,16 @@ const SKIP_ANCESTORS = [
 ].join(',');
 
 function insideSkipped(el: Element): boolean {
+    if (insideDatePickerMenu(el)) return true;
     return Boolean(el.closest(SKIP_ANCESTORS));
 }
 
 function kindFor(el: HTMLElement): ControlKind | null {
+    // vue-datepicker renders a plain text input whose only hints are its
+    // classes/`data-test-id`; v14 also gives it role="combobox", which would
+    // otherwise be claimed by the Reka combobox branch below.
+    if (isDatePickerInput(el)) return 'date';
+
     if (el.matches('.multiselect')) return 'vue-multiselect';
     if (el.matches('.vs__dropdown-toggle')) return 'vue-select';
 
@@ -93,8 +100,6 @@ function kindFor(el: HTMLElement): ControlKind | null {
             case 'password':
                 return 'password';
             default: {
-                if (el.classList.contains('dp__input')) return 'date';
-
                 const inputmode = (el.getAttribute('inputmode') ?? '').toLowerCase();
                 if (inputmode === 'numeric' || inputmode === 'decimal') return 'number';
 
