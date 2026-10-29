@@ -32,6 +32,8 @@ The right-click action uses the saved seed/scope/profile. **PRAXXYS Autofill: In
 
 > Chrome reserves **Cmd+Shift+B / Ctrl+Shift+B** for the bookmarks bar and **Cmd+Shift+F / Ctrl+Shift+F** for Search, so those exact chords cannot be assigned to an extension — not even manually at `chrome://extensions/shortcuts`. The extension uses **⌥⇧B / Alt+Shift+B**. The popup shows the active shortcut and **Change shortcut** opens the Chrome shortcut editor. You can rebind it at `chrome://extensions/shortcuts` if you prefer another non-reserved chord.
 
+On the supported hosts the content script also listens for **⌥⇧B / Alt+Shift+B** directly, so the shortcut still fills even if Chrome’s command registration is missing or overridden. The listener uses the physical `KeyB` code, so it works with the Option/Alt character variants on macOS.
+
 - **Inspect** outlines every detected control and reports its semantic kind without writing anything. Use it when a field is missed or mislabelled.
 - **Scope** — *Required + content* fills required fields plus rich-text editors; *All fields* fills everything the engine understands.
 - **Dropdowns** — first valid option, random valid option, or profile match first.
@@ -69,7 +71,7 @@ Caveats on real domains:
 - **Branded Chrome 137+ ignores `--load-extension` on the command line.** Use `chrome://extensions` → *Load unpacked*, or Chrome for Testing for automated runs.
 - **One grant per hostname.** `admin.example.com` and `staging.example.com` are separate grants; `*.example.com` is not implied.
 - **CSP does not block it.** Page CSP does not affect extension-injected scripts, but a site that renders forms inside a cross-origin iframe needs `all_frames` re-enabled.
-- **The current build pre-allows `dswd-web.praxxystech.com` and `globaleight-web-staging.praxxystech.com`.** Other hosts use the popup grant.
+- **The current build pre-allows `dswd-web.praxxystech.com`, `globaleight-web-staging.praxxystech.com`, `doxo-staging-web.praxxystech.com`, `admin.motorcentral.com.ph` and `injoy.com.ph`.** Other hosts use the popup grant.
 
 ### Current limits on multi-step registration
 
@@ -91,10 +93,11 @@ Caveats on real domains:
 | Web `BaseSelector` (reka Select) | keyboard: Enter opens, arrows move, Enter commits (synthetic pointer clicks do not commit) |
 | reka Combobox with a separate “Show popup” trigger | detect `[data-slot=combobox-trigger]`, read the wrapper label, select the first option, verify the combobox input value |
 | `BaseMultiselect` (vue-multiselect) | open, pick 1–2 unselected options |
-| `BaseSearchableSelect` (vue-select) | open, search, wait out the 500 ms debounce, pick |
+| `BaseSearchableSelect` (vue-select) | open on mousedown, wait out the app's debounced fetch, pick, then explicitly close the menu; the field label comes from the wrapper, not vue-select's generic “Search for option” aria-label |
 | Checkbox / radio / switch | positive labels only; an unselected radio group picks its first option; a multi-select checkbox group checks 1–2 **randomly chosen** options (optional groups too under “All fields”). Radio/checkbox groups are reported as **one row**, not one row per option |
+| Button-only choice groups (“Label as”, address type) | a small set of buttons is detected from the group label; one is clicked at random and reported as a single field |
 | CKEditor / TipTap | `window.__PRX_QA__` bridge when present, otherwise paste event, otherwise `execCommand` |
-| File input | parses `accept` and picks a **random allowed format** (PNG/JPEG/WebP/GIF/PDF/CSV/TXT/DOCX/XLSX/PPTX/WebM/MP4), verifies the generated MIME against `accept`, assigns via `DataTransfer`, reports validation errors |
+| File input | parses `accept` (including bare extensions like `pdf`), picks a **random allowed format** (PNG/JPEG/WebP/GIF/PDF/CSV/TXT/DOCX/XLSX/PPTX/WebM/MP4), verifies the generated MIME against `accept`, assigns via `DataTransfer`, reports validation errors |
 
 Dependent dropdowns (region → province → city → barangay) are retried across up to four passes so async option lists can arrive.
 
@@ -120,6 +123,20 @@ Before classifying, the engine detects what the page is editing — from the URL
 A “Category” text field becomes a category, “Role” becomes a position, and “Title” follows the module (product title, page title, …). If no module is detected, a bare “Name” stays a realistic person name.
 
 Detection is heuristic: the URL segment wins (`/admin/contents/products/create`), then the heading, then signals such as price/SKU or first/last/email. **Inspect** shows `entity_name` versus `full_name`, and profile overrides always win. Every fill randomizes the names by default; tick **Repeatable** to pin them to the seed.
+
+### Modals
+
+For forms inside a dialog, start the fill with **right-click inside the dialog → PRAXXYS Autofill: Fill form** or **⌥⇧B**. Opening the toolbar popup counts as an outside interaction and can close a dialog that auto-closes on outside clicks; the first field may fill, then the remaining fields report `not visible` because the dialog was unmounting.
+
+The filler now waits for a stable modal, scopes the scan to the open dialog, re-resolves detached elements, retries hidden fields, and reports the concrete reason (`detached`, `display:none`, `aria-hidden ancestor`, `inert ancestor`) instead of a bare “not visible”. It also no longer blurs fields or sends Escape unless a dropdown is actually open.
+
+### Verification harness
+
+```bash
+npm run harness   # http://localhost:8093
+```
+
+The harness mounts **real reka-ui components**, not static mocks: Select with an in-content search, Combobox with a separate trigger, input-only Combobox, RadioGroup, Checkbox, Switch, ToggleGroup, and a Dialog containing a Select plus the “Label as” button group. Fill it with the extension; the top-level form should reach 9/9, and the dialog should stay open with its own fields filled.
 
 ### URL and coordinate detection
 
@@ -160,6 +177,8 @@ src/core/                scanner, classifier, lexicon, faker, orchestrator, repo
 src/adapters/            text, choice, reka, vue-multiselect, vue-select, editors, file
 src/fixtures/            accept-aware file generation
 src/shared/              types, DOM helpers, seeded RNG, accept parser, bridge types
+public/icons/            extension logo (SVG + 16/32/48/128/512 PNGs)
+harness/                 real reka-ui/shadcn + vue-select harness (npm run harness)
 demo/form-zoo.html       standalone harness for all adapter shapes
 demo/file-zoo.html       accept-aware file generation harness
 demo/url-zoo.html        platform URL and latitude/longitude harness

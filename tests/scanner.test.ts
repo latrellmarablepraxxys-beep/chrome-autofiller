@@ -102,4 +102,21 @@ describe('scanner', () => {
         expect(age?.kind).toBe('number');
         expect(age?.numeric).toBe(true);
     });
+
+    it('reads the wrapper label of a vue-select instead of its generic aria-label', () => {
+        document.body.innerHTML = `
+            <div class="space-y-1">
+                <label>City <span class="text-destructive">*</span></label>
+                <div class="v-select">
+                    <div class="vs__dropdown-toggle" aria-label="Search for option">
+                        <input class="vs__search" />
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const city = scanControls().find((control) => control.kind === 'vue-select');
+        expect(city?.label).toBe('City');
+        expect(city?.required).toBe(true);
+    });
 });

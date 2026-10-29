@@ -43,8 +43,13 @@ export async function fillVueMultiselect(
 
     if (!chosen.length) return fail('no usable option', true);
 
-    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await sleep(60);
+    if (chosen.length) {
+        const menu = root.querySelector<HTMLElement>('.multiselect__content-wrapper');
+        if (menu && isVisible(menu)) {
+            trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        }
+        await sleep(60);
+    }
 
     return ok('vue-multiselect', chosen.map((option) => textOf(option)).join(', '));
 }

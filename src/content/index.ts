@@ -19,7 +19,7 @@ if (!window[GUARD]) {
         'keydown',
         (event) => {
             if (!event.altKey || !event.shiftKey || event.metaKey || event.ctrlKey) return;
-            if (event.key.toLowerCase() !== 'b') return;
+            if (event.code !== 'KeyB' && event.key.toLowerCase() !== 'b') return;
 
             event.preventDefault();
             void chrome.runtime.sendMessage({ type: 'RUN_SHORTCUT' }).catch(() => undefined);

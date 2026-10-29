@@ -45,4 +45,14 @@ describe('text adapter', () => {
         expect(outcome.status).toBe('filled');
         expect(input.value).toBe('10');
     });
+
+    it('keeps focus inside the field for modal focus traps', () => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        document.body.appendChild(input);
+
+        fillText(control(input, { kind: 'text', label: 'Full Name', numeric: false }), 'Nina Gonzales');
+
+        expect(document.activeElement).toBe(input);
+    });
 });

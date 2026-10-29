@@ -8,19 +8,24 @@ export function cleanLabel(value: string): string {
     return normalizeText(value.replace(/\*/g, ''));
 }
 
-export function isVisible(el: Element): boolean {
+export function visibilityReason(el: Element): string | null {
     const element = el as HTMLElement;
-    if (!element.isConnected) return false;
-    if (element.hidden) return false;
-    if (element.getAttribute('aria-hidden') === 'true') return false;
-    if (element.closest('[hidden]')) return false;
+    if (!element.isConnected) return 'detached';
+    if (element.hidden) return 'hidden';
+    if (element.closest('[inert]')) return 'inert ancestor';
+    if (element.closest('[aria-hidden="true"]')) return 'aria-hidden ancestor';
+    if (element.closest('[hidden]')) return 'hidden ancestor';
 
     const style = window.getComputedStyle(element);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        return false;
-    }
+    if (style.display === 'none') return 'display:none';
+    if (style.visibility === 'hidden') return 'visibility:hidden';
+    if (style.opacity === '0') return 'opacity:0';
 
-    return true;
+    return null;
+}
+
+export function isVisible(el: Element): boolean {
+    return visibilityReason(el) === null;
 }
 
 export function isDisabled(el: Element): boolean {
@@ -43,7 +48,8 @@ function cssEscape(value: string): string {
 
 export function readLabel(el: HTMLElement): string {
     const ariaLabel = el.getAttribute('aria-label');
-    const genericAction = /^(show popup|open|close|toggle|select|choose|show options|open menu|expand|show)$/i;
+    const genericAction =
+        /^(show popup|open|close|toggle|select|choose|show options|open menu|expand|show|search for option|search|search options|filter|filter options)$/i;
     if (ariaLabel && !genericAction.test(normalizeText(ariaLabel))) {
         return normalizeText(ariaLabel);
     }

@@ -126,7 +126,8 @@ export const ADDRESS_SEMANTICS: Semantic[] = [
     'address_line_2',
 ];
 
-export const NEGATIVE_TOGGLE = /archiv|delete|inactive|hidden|disable|draft|suspend|block/;
+export const NEGATIVE_TOGGLE =
+    /archiv|delete|inactive|hidden|disable|draft|suspend|block|\bno middle name\b|\bdo not\b|don't|opt out|unsubscribe|without\b/;
 export const POSITIVE_TOGGLE = /active|publish|visible|featured|available|enabled|approved|primary/;
 
 export function normalizeForMatch(value: string): string {

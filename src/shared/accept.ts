@@ -53,7 +53,9 @@ export function parseAccept(value: string | null | undefined): AcceptInfo {
     const tokens = raw
         .split(',')
         .map((token) => token.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        // Some frontends emit bare extensions ("pdf") instead of ".pdf".
+        .map((token) => (!token.includes('/') && !token.startsWith('.') ? `.${token}` : token));
 
     const formats: FileFormat[] = [];
     const add = (format: FileFormat) => {

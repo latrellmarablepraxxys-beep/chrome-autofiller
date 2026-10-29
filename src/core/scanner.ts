@@ -1,5 +1,5 @@
 import type { ControlKind, DetectedControl } from '../shared/types';
-import { cleanLabel, fieldKey, isVisible, normalizeText, readLabel } from '../shared/dom';
+import { cleanLabel, fieldKey, isDisabled, isVisible, normalizeText, readLabel } from '../shared/dom';
 import { insideDatePickerMenu, isDatePickerInput } from '../shared/picker';
 
 const CANDIDATE_SELECTOR = [
@@ -13,6 +13,8 @@ const CANDIDATE_SELECTOR = [
     '[role="checkbox"]',
     '[data-slot="combobox-trigger"]',
     'button[aria-haspopup="listbox"]',
+    '[data-slot="toggle-group"] button',
+    '[role="group"] button[aria-pressed]',
     '.multiselect',
     '.vs__dropdown-toggle',
 ].join(',');
@@ -59,11 +61,32 @@ function kindFor(el: HTMLElement): ControlKind | null {
     if (el.matches('[data-slot="combobox-trigger"], button[aria-haspopup="listbox"]')) {
         return 'reka-combobox';
     }
+    if (el.matches('[data-slot="toggle-group"] button, [role="group"] button[aria-pressed]')) {
+        const group = el.closest('[data-slot="toggle-group"], [role="group"]');
+        if (
+            !group ||
+            group.querySelector('button[aria-pressed], button[data-state]') !== el
+        ) {
+            return null;
+        }
+        if (!el.closest('form')) return null;
+        return 'toggle-group';
+    }
     if (el.matches('[role="combobox"]')) {
         // Only dropdown triggers. Reka's CommandInput is also role=combobox.
-        return el.tagName === 'BUTTON' || el.hasAttribute('aria-haspopup')
-            ? 'reka-combobox'
-            : null;
+        if (el.tagName === 'BUTTON' || el.hasAttribute('aria-haspopup')) {
+            return 'reka-combobox';
+        }
+
+        // Input-only reka Combobox (no separate trigger).
+        if (el instanceof HTMLInputElement && el.hasAttribute('aria-expanded')) {
+            const wrapper = el.closest('[data-slot="combobox"]');
+            if (wrapper && !wrapper.querySelector('[data-slot="combobox-trigger"]')) {
+                return 'reka-combobox';
+            }
+        }
+
+        return null;
     }
 
     if (el instanceof HTMLSelectElement) return 'native-select';
@@ -138,8 +161,7 @@ function radioGroupLabel(el: HTMLElement): string {
     return '';
 }
 
-interface CheckboxContext {
-    group: HTMLElement;
+interface CheckboxContext {    group: HTMLElement;
     groupLabel: string;
     optionLabel: string;
 }
@@ -160,6 +182,10 @@ function checkboxContext(el: HTMLElement): CheckboxContext | null {
         Array.from(group.children).find((child) => child.tagName === 'LABEL')?.textContent ?? '';
     const groupLabel = normalizeText(directLabel);
 
+    // Unrelated checkboxes often share a <form>; only treat a container as a
+    // group when it has its own group label (e.g. "Type of Disability *").
+    if (!groupLabel) return null;
+
     let node: HTMLElement | null = el.parentElement;
     let optionLabel = '';
 
@@ -173,6 +199,21 @@ function checkboxContext(el: HTMLElement): CheckboxContext | null {
     }
 
     return { group, groupLabel, optionLabel };
+}
+
+function toggleGroupLabel(group: HTMLElement): string {
+    const parent = group.parentElement;
+    if (!parent) return '';
+
+    for (const child of Array.from(parent.children)) {
+        if (child === group) continue;
+        if (child.tagName === 'LABEL' || child.tagName === 'P') return normalizeText(child.textContent);
+    }
+
+    const label = parent.querySelector('label');
+    if (label && !label.contains(group)) return normalizeText(label.textContent);
+
+    return '';
 }
 
 function toControl(el: HTMLElement, index: number): DetectedControl | null {
@@ -193,7 +234,15 @@ function toControl(el: HTMLElement, index: number): DetectedControl | null {
     const labelText = readLabel(el);
     const checkbox = kind === 'checkbox' ? checkboxContext(el) : null;
     const radioGroup = el.closest<HTMLElement>('[role="radiogroup"]');
-    const groupLabel = radioGroupLabel(el) || checkbox?.groupLabel || '';
+    const toggleGroup =
+        kind === 'toggle-group'
+            ? el.closest<HTMLElement>('[data-slot="toggle-group"], [role="group"]')
+            : null;
+    const groupLabel =
+        radioGroupLabel(el) ||
+        checkbox?.groupLabel ||
+        (toggleGroup ? toggleGroupLabel(toggleGroup) : '') ||
+        '';
     const required = Boolean(
         (el as HTMLInputElement).required ||
             el.getAttribute('aria-required') === 'true' ||
@@ -201,9 +250,14 @@ function toControl(el: HTMLElement, index: number): DetectedControl | null {
             /\*\s*$/.test(groupLabel),
     );
 
-    const optionLabel = checkbox?.optionLabel || cleanLabel(labelText);
+    const optionLabel =
+        kind === 'toggle-group'
+            ? normalizeText(el.textContent)
+            : checkbox?.optionLabel || cleanLabel(labelText);
     const label = groupLabel
-        ? `${cleanLabel(groupLabel)}: ${optionLabel}`
+        ? kind === 'toggle-group'
+            ? cleanLabel(groupLabel)
+            : `${cleanLabel(groupLabel)}: ${optionLabel}`
         : optionLabel;
 
     const numeric =
@@ -228,15 +282,25 @@ function toControl(el: HTMLElement, index: number): DetectedControl | null {
         multiple: Boolean((el as HTMLInputElement).multiple ?? inner?.multiple),
         numeric,
         optionLabel,
-        groupEl: checkbox?.group ?? radioGroup ?? undefined,
+        groupEl: checkbox?.group ?? radioGroup ?? toggleGroup ?? undefined,
         groupLabel: groupLabel || undefined,
         groupRequired: /\*\s*$/.test(groupLabel),
         index,
     };
 }
 
+function activeDialog(): HTMLElement | null {
+    const dialogs = Array.from(
+        document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]'),
+    );
+
+    return dialogs.reverse().find((dialog) => isVisible(dialog)) ?? null;
+}
+
 export function scanControls(): DetectedControl[] {
-    const nodes = Array.from(document.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR));
+    const dialog = activeDialog();
+    const root: ParentNode = dialog ?? document;
+    const nodes = Array.from(root.querySelectorAll<HTMLElement>(CANDIDATE_SELECTOR));
     const controls: DetectedControl[] = [];
     const usedKeys = new Map<string, number>();
     let index = 0;
@@ -252,6 +316,48 @@ export function scanControls(): DetectedControl[] {
         control.index = index;
         index += 1;
         controls.push(control);
+    }
+
+    // Button-only choice groups (e.g. the address "Label as" buttons) are not
+    // native controls. Detect the safe, label-scoped groups only.
+    for (const button of Array.from(root.querySelectorAll<HTMLElement>('form button'))) {
+        if (isDisabled(button)) continue;
+
+        const container = button.parentElement;
+        if (!container) continue;
+
+        const siblings = Array.from(container.querySelectorAll<HTMLElement>(':scope > button')).filter(
+            (item) => !isDisabled(item),
+        );
+        if (siblings.length < 2 || siblings[0] !== button) continue;
+
+        const groupText = normalizeText(container.parentElement?.textContent ?? '');
+        if (!/label as|address type/i.test(groupText)) continue;
+
+        const groupLabel = /label as/i.test(groupText) ? 'Label as' : 'Address type';
+        const key = fieldKey(button, groupLabel, index);
+        const seen = usedKeys.get(key) ?? 0;
+        usedKeys.set(key, seen + 1);
+
+        controls.push({
+            el: button,
+            kind: 'button-choice',
+            label: groupLabel,
+            name: '',
+            id: '',
+            placeholder: '',
+            required: /\*/.test(groupText),
+            key: seen === 0 ? key : `${key}-${seen + 1}`,
+            accept: '',
+            multiple: false,
+            numeric: false,
+            optionLabel: normalizeText(button.textContent),
+            groupEl: container,
+            groupLabel,
+            groupRequired: /\*/.test(groupText),
+            index,
+        });
+        index += 1;
     }
 
     return controls;

@@ -36,7 +36,8 @@ export function fillText(control: DetectedControl, value: string): FieldOutcome 
 
     el.focus();
     setNativeValue(el, next);
-    el.blur();
+    // Do not blur: dialogs can treat focus leaving the field as an
+    // outside interaction and close themselves mid-fill.
 
     if (!el.value) return fail('value did not apply');
 

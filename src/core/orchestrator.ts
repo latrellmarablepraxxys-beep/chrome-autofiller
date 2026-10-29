@@ -6,7 +6,7 @@ import type {
     RunMode,
 } from '../shared/types';
 import { hashString, Rng } from '../shared/random';
-import { cleanLabel, isDisabled, isVisible, sleep } from '../shared/dom';
+import { cleanLabel, isDisabled, sleep, visibilityReason } from '../shared/dom';
 import { classify, isDropdownKind, profileValueFor } from './classifier';
 import { generateValue, type GenerationContext } from './faker';
 import { detectModule } from './module';
@@ -14,7 +14,14 @@ import { ADDRESS_SEMANTICS, type Semantic } from './lexicon';
 import { annotateControl, clearInspection, scanControls } from './scanner';
 import { fillText } from '../adapters/text';
 import { fillDatePicker } from '../adapters/datepicker';
-import { fillCheckbox, fillNativeSelect, fillRadio, fillToggle } from '../adapters/choice';
+import {
+    fillButtonChoice,
+    fillCheckbox,
+    fillNativeSelect,
+    fillRadio,
+    fillToggle,
+    fillToggleGroup,
+} from '../adapters/choice';
 import { fillReka } from '../adapters/reka';
 import { fillVueMultiselect } from '../adapters/vue-multiselect';
 import { fillVueSelect } from '../adapters/vue-select';
@@ -108,8 +115,9 @@ async function fillControl(
     const rng = new Rng(hashString(`${options.seed}:${options.nonce ?? 0}:${control.key}`));
     const profile = profileValueFor(control, semantic, options.profile);
 
-    if (!isVisible(control.el) && control.kind !== 'file') {
-        return { outcome: skip('not visible'), semantic };
+    const hiddenReason = visibilityReason(control.el);
+    if (hiddenReason && control.kind !== 'file') {
+        return { outcome: skipRetry(`not visible (${hiddenReason})`), semantic };
     }
     if (isDisabled(control.el)) return { outcome: skipRetry('disabled'), semantic };
 
@@ -187,7 +195,13 @@ async function fillControl(
                 return { outcome: await fillRadio(control, radioGroups), semantic };
 
             case 'switch':
-                return { outcome: fillToggle(control, true), semantic };
+                return { outcome: await fillToggle(control, true), semantic };
+
+            case 'button-choice':
+                return { outcome: fillButtonChoice(control, rng), semantic };
+
+            case 'toggle-group':
+                return { outcome: await fillToggleGroup(control, rng), semantic };
 
             default: {
                 if (profile) return { outcome: fillText(control, profile), semantic };
@@ -285,12 +299,37 @@ function groupFieldResults(
     return rows;
 }
 
+function resolveFresh(control: DetectedControl): DetectedControl {
+    if (control.el.isConnected) return control;
+
+    return scanControls().find((item) => item.key === control.key) ?? control;
+}
+
+async function stableScan(): Promise<DetectedControl[]> {
+    let previous = scanControls();
+
+    // Wait out the modal's enter/transition and any async option render before
+    // filling, so the captured elements are the live ones.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        await sleep(160);
+        const next = scanControls();
+        const same =
+            next.length === previous.length &&
+            next.every((control, index) => control.key === previous[index].key);
+
+        if (same) return next;
+        previous = next;
+    }
+
+    return previous;
+}
+
 export async function execute(mode: RunMode, options: FillOptions): Promise<FillReport> {
     const started = Date.now();
     clearInspection();
 
     if (mode === 'inspect') {
-        const inspectControls = scanControls();
+        const inspectControls = await stableScan();
         const inspectModule = detectModule(inspectControls);
         const fields = inspectControls.map((control) => {
             const semantic = classify(control, inspectModule);
@@ -306,7 +345,7 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
         return buildReport(mode, started, fields);
     }
 
-    const controls = scanControls();
+    const controls = await stableScan();
     const module = detectModule(controls);
     const generation: GenerationContext = { coordinates: new Map(), module };
     const allControls = [...controls];
@@ -318,21 +357,21 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
     const checkboxGroups = new Set<string>();
 
     let queue = pending;
-    for (let pass = 0; pass < 6; pass += 1) {
+    for (let pass = 0; pass < 7; pass += 1) {
         const retry: DetectedControl[] = [];
 
         for (const control of queue) {
             if (handled.has(control.key)) continue;
 
             const result = await fillControl(
-                control,
+                resolveFresh(control),
                 options,
                 passwordCache,
                 radioGroups,
                 checkboxGroups,
                 generation,
             );
-            if (result.outcome.retryable && pass < 5) {
+            if (result.outcome.retryable && pass < 6) {
                 retry.push(control);
                 continue;
             }
@@ -346,13 +385,13 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
                 )
             ) {
                 // Dependent option lists are fetched by the app after a selection.
-                await sleep(350);
+                await sleep(700);
             }
         }
 
         if (!retry.length) break;
 
-        await sleep(900);
+        await sleep(1000);
         const fresh = scanControls();
         queue = retry.map((control) => fresh.find((item) => item.key === control.key) ?? control);
     }
@@ -372,7 +411,7 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
             if (handled.has(control.key)) continue;
 
             const result = await fillControl(
-                control,
+                resolveFresh(control),
                 options,
                 passwordCache,
                 radioGroups,
