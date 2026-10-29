@@ -1,6 +1,5 @@
 import type { DetectedControl } from '../shared/types';
 import { isDisabled, setNativeValue } from '../shared/dom';
-import { formatDateForControl } from '../core/faker';
 import { fail, ok, skip, type FieldOutcome } from './types';
 
 export function fillText(control: DetectedControl, value: string): FieldOutcome {
@@ -30,27 +29,17 @@ export function fillText(control: DetectedControl, value: string): FieldOutcome 
         }
     }
 
-    if (control.kind === 'date') {
-        next = formatDateForControl(value, control);
-    }
-
     const maxlength = el.getAttribute('maxlength');
     if (maxlength && Number(maxlength) > 0) {
         next = next.slice(0, Number(maxlength));
     }
 
-    if (el.classList.contains('dp__input')) {
-        el.focus();
-        setNativeValue(el, next);
-        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    } else {
-        el.focus();
-        setNativeValue(el, next);
-        // Do not blur: dialogs can treat focus leaving the field as an
-        // outside interaction and close themselves mid-fill.
-    }
+    el.focus();
+    setNativeValue(el, next);
+    // Do not blur: dialogs can treat focus leaving the field as an
+    // outside interaction and close themselves mid-fill.
 
     if (!el.value) return fail('value did not apply');
 
-    return ok(el.classList.contains('dp__input') ? 'date-picker' : 'native-input', next);
+    return ok('native-input', next);
 }
