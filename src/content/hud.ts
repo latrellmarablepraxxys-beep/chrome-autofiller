@@ -38,6 +38,7 @@ function mount(inner: string, report?: FillReport): void {
                 line-height: 1.45;
             }
             .head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #374151; }
+            .logo { width: 20px; height: 20px; border-radius: 5px; flex: none; }
             .title { font-weight: 700; font-size: 13px; letter-spacing: 0.01em; }
             .counts { margin-left: auto; color: #c7d2fe; font-variant-numeric: tabular-nums; }
             .body { padding: 8px 14px 12px; }
@@ -67,6 +68,7 @@ function mount(inner: string, report?: FillReport): void {
         </style>
         <div class="card">
             <div class="head">
+                <img class="logo" src="${chrome.runtime.getURL('icons/icon-32.png')}" alt="" />
                 <span class="title">PRAXXYS Autofill</span>
                 <span class="counts">${escapeHtml(inner)}</span>
             </div>

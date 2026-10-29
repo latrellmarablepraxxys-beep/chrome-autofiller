@@ -9,14 +9,21 @@ import {
     waitFor,
 } from '../shared/dom';
 import { pickOption } from './option-picker';
-import { fail, ok, skip, type DropdownIntent, type FieldOutcome } from './types';
+import { fail, ok, skipRetry, type DropdownIntent, type FieldOutcome } from './types';
+
+function isVueSelectDisabled(root: HTMLElement): boolean {
+    const wrapper = root.closest<HTMLElement>('.v-select');
+    if (wrapper?.classList.contains('vs--disabled')) return true;
+
+    return Boolean(root.querySelector<HTMLInputElement>('.vs__search')?.disabled);
+}
 
 export async function fillVueSelect(
     control: DetectedControl,
     intent: DropdownIntent,
 ): Promise<FieldOutcome> {
     const root = control.el;
-    if (isDisabled(root)) return skip('disabled');
+    if (isDisabled(root) || isVueSelectDisabled(root)) return skipRetry('disabled');
 
     const wrapper = root.closest<HTMLElement>('.v-select') ?? root.parentElement ?? root;
 
@@ -59,7 +66,23 @@ export async function fillVueSelect(
 
     if (!chosen.length) return fail('no usable option', true);
 
-    search?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    if (chosen.length) {
+        // vue-select normally closes on select; close it explicitly if it is
+        // still open so the next adapter cannot pick its options.
+        await sleep(120);
+        const openMenu = wrapper.querySelector<HTMLElement>('.vs__dropdown-menu');
+        if (openMenu && isVisible(openMenu)) {
+            (search ?? root).dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+            );
+            await sleep(120);
+            if (isVisible(openMenu)) {
+                (search ?? root).dispatchEvent(
+                    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+                );
+            }
+        }
+    }
 
     return ok('vue-select', chosen.map((option) => textOf(option)).join(', '));
 }

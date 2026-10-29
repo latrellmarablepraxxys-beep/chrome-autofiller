@@ -237,6 +237,15 @@
                     <label for="notes">Notes</label>
                     <textarea id="notes" name="notes" rows="3"></textarea>
                 </div>
+
+                <div class="field">
+                    <p>Label as <span style="color: #dc2626">*</span></p>
+                    <div class="inline">
+                        <button type="button" class="label-btn">Home</button>
+                        <button type="button" class="label-btn">Work</button>
+                        <button type="button" class="label-btn">Other</button>
+                    </div>
+                </div>
             </form>
 
             <pre id="log">events…</pre>
@@ -365,6 +374,17 @@
                     const next = element.getAttribute('aria-checked') !== 'true';
                     element.setAttribute('aria-checked', String(next));
                     write(`checkbox ${element.getAttribute('aria-label')} = ${next}`);
+                });
+            });
+
+            // address-label button group
+            document.querySelectorAll('.label-btn').forEach((button) => {
+                button.addEventListener('click', () => {
+                    document
+                        .querySelectorAll('.label-btn')
+                        .forEach((item) => item.removeAttribute('data-selected'));
+                    button.setAttribute('data-selected', 'true');
+                    write(`label = ${button.textContent}`);
                 });
             });
         </script>

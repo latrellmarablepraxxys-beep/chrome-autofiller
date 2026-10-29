@@ -22,7 +22,9 @@ export type ControlKind =
     | 'file'
     | 'checkbox'
     | 'radio'
-    | 'switch';
+    | 'switch'
+    | 'button-choice'
+    | 'toggle-group';
 
 export interface FillOptions {
     seed: number;

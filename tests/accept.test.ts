@@ -40,6 +40,14 @@ describe('accept parser', () => {
         expect(pickFormat(info)).toBe('xlsx');
     });
 
+    it('normalizes bare extensions like pdf', () => {
+        const info = parseAccept('pdf');
+        expect(info.formats).toEqual(['pdf']);
+        expect(info.allowsPdf).toBe(true);
+        expect(pickFormat(info)).toBe('pdf');
+        expect(matchesAccept('certificate.pdf', 'application/pdf', info)).toBe(true);
+    });
+
     it('lists every accepted format for random selection', () => {
         const info = parseAccept('image/*,.pdf,text/csv,video/*');
         expect(info.formats).toEqual(['png', 'jpeg', 'webp', 'pdf', 'csv', 'webm', 'mp4']);

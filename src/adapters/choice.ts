@@ -64,7 +64,10 @@ export function fillNativeSelect(control: DetectedControl, labels: string[]): Fi
     return ok(`native-select:${match.textContent?.trim()}`, match.textContent?.trim());
 }
 
-export function fillToggle(control: DetectedControl, desired: boolean): FieldOutcome {
+export async function fillToggle(
+    control: DetectedControl,
+    desired: boolean,
+): Promise<FieldOutcome> {
     const el = control.el;
     if (isDisabled(el)) return skip('disabled');
 
@@ -79,7 +82,9 @@ export function fillToggle(control: DetectedControl, desired: boolean): FieldOut
         else clickSequence(el);
     }
 
-    return isChecked(el) === desired ? ok('switch', String(desired)) : fail('switch did not change');
+    const applied = await waitFor(() => (isChecked(el) === desired ? true : null), 400);
+
+    return applied ? ok('switch', String(desired)) : fail('switch did not change');
 }
 
 export async function fillRadio(
@@ -119,13 +124,77 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
     return copy;
 }
 
+function isToggleOn(el: HTMLElement): boolean {
+    return (
+        el.getAttribute('aria-pressed') === 'true' ||
+        el.getAttribute('data-state') === 'on' ||
+        el.getAttribute('data-state') === 'checked'
+    );
+}
+
+export async function fillToggleGroup(
+    control: DetectedControl,
+    rng: Rng,
+): Promise<FieldOutcome> {
+    const group =
+        control.groupEl ??
+        control.el.closest<HTMLElement>('[data-slot="toggle-group"], [role="group"]');
+    if (!group) return fail('no toggle group');
+
+    const items = Array.from(
+        group.querySelectorAll<HTMLElement>('button[aria-pressed], button[data-state]'),
+    ).filter((item) => !isDisabled(item));
+
+    if (!items.length) return fail('no toggle options', true);
+    if (items.some(isToggleOn)) return skip('already selected');
+
+    const multiple =
+        group.getAttribute('aria-multiselectable') === 'true' ||
+        group.getAttribute('data-type') === 'multiple';
+    const count = multiple ? Math.min(2, items.length) : 1;
+    const picks = shuffle(items, rng).slice(0, count);
+
+    for (const item of picks) {
+        clickSequence(item);
+        await sleep(80);
+    }
+
+    const labels = items
+        .filter(isToggleOn)
+        .map((item) => normalizeText(item.textContent))
+        .filter(Boolean);
+
+    return labels.length
+        ? ok('toggle-group', labels.join(', '))
+        : fail('toggle did not change');
+}
+
+export function fillButtonChoice(control: DetectedControl, rng: Rng): FieldOutcome {    const group = control.groupEl;
+    if (!group) return fail('no button group');
+
+    const buttons = Array.from(
+        group.querySelectorAll<HTMLButtonElement>(':scope > button'),
+    ).filter((button) => !isDisabled(button));
+
+    if (!buttons.length) return fail('no button options', true);
+
+    // The selected BaseButton renders its check icon; don't flip an existing choice.
+    if (buttons.some((button) => button.querySelector('svg'))) {
+        return skip('already selected');
+    }
+
+    const target = buttons[rng.int(0, buttons.length - 1)];
+    clickSequence(target);
+
+    return ok('button-choice', normalizeText(target.textContent));
+}
+
 export async function fillCheckbox(
     control: DetectedControl,
     groups: Set<string>,
     rng: Rng,
     allowOptional = false,
-): Promise<FieldOutcome> {
-    const el = control.el;
+): Promise<FieldOutcome> {    const el = control.el;
     if (isDisabled(el)) return skip('disabled');
 
     // Multi-select groups pick 1-2 random options. Required groups always get
@@ -182,14 +251,18 @@ export async function fillCheckbox(
 
     const label = normalizeForMatch(control.label);
     if (NEGATIVE_TOGGLE.test(label)) return skip('negative checkbox left off');
-    if (!POSITIVE_TOGGLE.test(label)) return skip('ambiguous checkbox');
+    if (!POSITIVE_TOGGLE.test(label) && !control.required && !allowOptional) {
+        return skip('ambiguous checkbox');
+    }
 
     if (!isChecked(el)) {
         if (el instanceof HTMLInputElement) el.click();
         else clickSequence(el);
     }
 
-    return isChecked(el)
+    const applied = await waitFor(() => (isChecked(el) ? true : null), 400);
+
+    return applied
         ? ok(el instanceof HTMLInputElement ? 'checkbox' : 'reka-checkbox', 'true')
         : fail('checkbox did not change');
 }

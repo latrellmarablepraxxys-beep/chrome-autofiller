@@ -32,7 +32,7 @@ Open `http://localhost:8090/demo/form-zoo.html` and press `⌥⇧B` / `Alt+Shift
 Open `http://localhost:8090/demo/file-zoo.html`, Scope = **All fields**, Fill.
 
 - [ ] `image/*` gets PNG/JPEG/WebP (not GIF unless explicitly accepted).
-- [ ] `application/pdf` gets a PDF; `.docx,.xlsx,.pptx` gets one of those, with the matching MIME.
+- [ ] `application/pdf` and bare `pdf` get a PDF; `.docx,.xlsx,.pptx` gets one of those, with the matching MIME.
 - [ ] `video/*` gets WebM or MP4 when the browser can record it.
 - [ ] “Photo (mixed accept)” stays an image even though PDF is allowed.
 - [ ] Multiple input gets two different accepted formats.
@@ -93,7 +93,16 @@ Open `https://globaleight-web-staging.praxxystech.com/` and Fill.
 - [ ] **Business Type** shows a selected value (e.g. “Corporation”) — the reka Combobox with a separate “Show popup” trigger.
 - [ ] Tenure is 1–20 years; no failures in the report.
 
-## 8. dswd-web-app
+## 8. Doxo staging (addresses)
+
+Open `https://doxo-staging-web.praxxystech.com/my-account?view=addresses`, click **Add New**, then fill with **right-click inside the dialog** or **⌥⇧B** (not the toolbar popup — opening it can close the dialog).
+
+- [ ] Region fills; Province, City and Barangay fill after their parent options arrive.
+- [ ] **Label as** selects Home/Work/Other (button-only group).
+- [ ] Full name, phone (10 digits), postal code and street fill; no failures.
+- [ ] The report never says `not visible` for the fields below Full Name.
+
+## 9. dswd-web-app
 
 Start at `https://dswd-web.praxxystech.com/auth/register` (or the local Nuxt app).
 
@@ -108,6 +117,31 @@ Start at `https://dswd-web.praxxystech.com/auth/register` (or the local Nuxt app
 - [ ] Next → Documents: five files uploaded (PNG, tens of KB), ID type selected, no validation errors.
 - [ ] No field is filled on the confirmation/submit step; you submit manually.
 - [ ] Multi-step form: only the visible step is filled; the extension never clicks Continue/Next.
+
+## 10. Reka / shadcn harness
+
+```bash
+npm run harness   # http://localhost:8093
+```
+
+- [ ] Fill with Scope = All fields: Full Name, Notes, Region, Business Type, Sole Proprietor Type, Gender, Active, Published, View all fill (9/9).
+- [ ] Checkbox and switch state poll correctly (no false failures).
+- [ ] Required “I agree to the terms” checks; optional “Subscribe” checks under All fields; “I have no middle name” stays off.
+- [ ] Region uses the reka Select with an in-content search input.
+- [ ] Business Type uses the Combobox with a separate “Show popup” trigger.
+- [ ] Sole Proprietor Type uses the input-only Combobox.
+- [ ] View uses the ToggleGroup (List/Grid).
+- [ ] Open the address dialog and fill: Full Name, Region, Label as fill; the dialog **stays open** and the top-level values are unchanged.
+- [ ] The vue-select “City” field fills (City One/Two/Three), proving the admin `BaseSearchableSelect` shape.
+
+## 11. Motorcentral branches
+
+Open `https://admin.motorcentral.com.ph/admin/contents/branches/create` and Fill.
+
+- [ ] **Region/Province** fills (async `admin.dropdowns.provinces`).
+- [ ] **City** becomes enabled after the province and fills from `admin.dropdowns.cities`.
+- [ ] The report detects both as `vue-select`; the City is not skipped as disabled forever.
+- [ ] Address, latitude, longitude and the rest of the branch form fill.
 
 ## Report a problem
 

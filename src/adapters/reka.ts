@@ -3,7 +3,33 @@ import { clickSequence, isDisabled, isVisible, sleep, textOf, waitFor } from '..
 import { pickOption, visibleOptions } from './option-picker';
 import { fail, ok, skip, type DropdownIntent, type FieldOutcome } from './types';
 
+function controlledListbox(trigger: HTMLElement): HTMLElement | null {
+    const container =
+        trigger.closest<HTMLElement>('[data-slot="combobox"], [data-slot="select"]') ??
+        trigger.parentElement ??
+        trigger;
+    const ids = new Set<string>();
+    const collect = (element: Element | null) => {
+        const id = element?.getAttribute('aria-controls');
+        if (id) ids.add(id);
+    };
+
+    collect(trigger);
+    container.querySelectorAll('[aria-controls]').forEach(collect);
+
+    for (const id of ids) {
+        const element = document.getElementById(id);
+        if (element && isVisible(element)) return element;
+    }
+
+    return null;
+}
+
 function closeDropdown(trigger: HTMLElement): void {
+    // Only close this component's own listbox. Never send Escape when nothing
+    // is open, otherwise it bubbles to the surrounding dialog and closes it.
+    if (!controlledListbox(trigger)) return;
+
     trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }
 
@@ -52,21 +78,31 @@ async function fillRekaSelect(trigger: HTMLElement, intent: DropdownIntent): Pro
         return skip('already selected');
     }
 
-    pressKey(document.activeElement as HTMLElement | null, 'Escape');
-    await sleep(100);
+    if (controlledListbox(trigger)) {
+        pressKey(document.activeElement as HTMLElement | null, 'Escape');
+        await sleep(100);
+    }
 
     trigger.focus();
-    pressKey(trigger, 'Enter');
+    clickSequence(trigger);
+
+    const findOptions = () => {
+        const list = controlledListbox(trigger);
+        const found = list
+            ? Array.from(list.querySelectorAll<HTMLElement>('[role="option"]'))
+            : visibleOptions('[role="option"]');
+        return found.filter(isVisible);
+    };
 
     let options = await waitFor(() => {
-        const found = visibleOptions('[role="option"]');
+        const found = findOptions();
         return found.length ? found : null;
-    }, 2500);
+    }, 2000);
 
     if (!options) {
-        pressKey(trigger, 'ArrowDown');
+        pressKey(trigger, 'Enter');
         options = await waitFor(() => {
-            const found = visibleOptions('[role="option"]');
+            const found = findOptions();
             return found.length ? found : null;
         }, 3500);
     }
@@ -113,7 +149,10 @@ async function fillRekaSelect(trigger: HTMLElement, intent: DropdownIntent): Pro
     }
 
     // Last resort: click the option we already located.
-    const stillOpen = document.querySelectorAll('[role="option"]').length > 0;
+    const ownListbox = controlledListbox(trigger);
+    const stillOpen = ownListbox
+        ? Array.from(ownListbox.querySelectorAll('[role="option"]')).some(isVisible)
+        : false;
     if (stillOpen) {
         clickSequence(target);
         await sleep(250);
@@ -136,15 +175,34 @@ async function fillRekaPopover(trigger: HTMLElement, intent: DropdownIntent): Pr
     const before = textOf(container);
     const beforeValue = input?.value ?? '';
 
+    if (trigger instanceof HTMLInputElement) {
+        trigger.focus();
+    }
+
     clickSequence(trigger);
 
-    const listbox = await waitFor(
+    let listbox = await waitFor(
         () =>
-            visibleOptions('[role="listbox"]').pop() ??
-            visibleOptions('[role="menu"]').pop() ??
-            null,
+            controlledListbox(trigger) ??
+            (trigger instanceof HTMLInputElement
+                ? null
+                : (visibleOptions('[role="listbox"]').pop() ??
+                  visibleOptions('[role="menu"]').pop() ??
+                  null)),
         1500,
     );
+
+    if (!listbox && trigger instanceof HTMLInputElement) {
+        pressKey(trigger, 'ArrowDown');
+        listbox = await waitFor(
+            () =>
+                controlledListbox(trigger) ??
+                visibleOptions('[role="listbox"]').pop() ??
+                visibleOptions('[role="menu"]').pop() ??
+                null,
+            1500,
+        );
+    }
 
     if (!listbox) return fail('dropdown did not open', true);
 
@@ -171,7 +229,11 @@ async function fillRekaPopover(trigger: HTMLElement, intent: DropdownIntent): Pr
 
     const after = textOf(container);
     const afterValue = input?.value ?? '';
-    const listClosed = visibleOptions('[role="option"]').length === 0;
+    const ownListbox = controlledListbox(trigger);
+    const ownOptions = ownListbox
+        ? Array.from(ownListbox.querySelectorAll('[role="option"]')).filter(isVisible)
+        : [];
+    const listClosed = ownOptions.length === 0;
 
     if (after === before && afterValue === beforeValue && !listClosed) {
         closeDropdown(trigger);

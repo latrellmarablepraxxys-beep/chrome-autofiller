@@ -29,6 +29,13 @@ body {
     padding-bottom: 4px;
 }
 
+.logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    flex: none;
+}
+
 h1 {
     margin: 0;
     font-size: 14px;
