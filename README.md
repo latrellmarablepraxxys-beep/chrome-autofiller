@@ -1,6 +1,6 @@
 # PRAXXYS Autofill
 
-Chrome MV3 extension that fills PRAXXYS admin and web forms with deterministic, realistic data — native inputs, the four dropdown implementations we use, CKEditor, TipTap, and file uploads that respect the frontend `accept` attribute.
+Chrome MV3 extension that fills PRAXXYS admin and web forms with deterministic, realistic data — native controls, shadcn, reka-ui, PRAXXYS Vue Kit, vue-select/vue-multiselect, `@vuepic/vue-datepicker`, CKEditor, TipTap, and file uploads that respect the frontend `accept` attribute.
 
 It never saves, submits, or touches password fields unless you give it a password in the profile.
 
@@ -88,11 +88,13 @@ Caveats on real domains:
 | Latitude / longitude / coordinates | one paired point per form; 6-decimal lat/lng, `lat,lng` for a single field; the map URL reuses the same point |
 | Number-only (`inputmode=numeric`) | digits only; PhilSys uses 16 digits, numeric IDs use `maxlength` |
 | Date | native `input[type=date]` (ISO), or `@vuepic/vue-datepicker` v9–v14 driven through its calendar: click the `dp-YYYY-MM-DD` cell, use the month/year overlays or nav arrows for far dates, then commit with the action row. Birthdates are always in the past. |
-| Native select | first valid (or profile-matching) option + `change` |
+| Native select | first valid option (or profile match) + `change`; `<select multiple>` replaces the selection with 1–2 options |
 | Admin `BaseSelector` (reka Command) | open `[role=combobox]`, pick `[role=option]`, verify trigger text |
 | Web `BaseSelector` (reka Select) | keyboard: Enter opens, arrows move, Enter commits (synthetic pointer clicks do not commit) |
 | reka Combobox with a separate “Show popup” trigger | detect `[data-slot=combobox-trigger]`, read the wrapper label, select the first option, verify the combobox input value |
-| `BaseMultiselect` (vue-multiselect) | open, pick 1–2 unselected options |
+| `PrxSelect` (PRAXXYS Vue Kit) | click the `data-testid="…-selector"` combobox button, click the reka option, verify the trigger text, close the popover |
+| `PrxSearchableSelect` (PRAXXYS Vue Kit) | open the custom div/input, wait for the debounced `searchRoute` options, click a `…-option-…` button, close the popup |
+| `BaseMultiselect` / `PrxMultiSelect` (vue-multiselect) | open, pick 1–2 unselected options |
 | `BaseSearchableSelect` (vue-select) | open on mousedown, wait out the app's debounced fetch, pick, then explicitly close the menu; the field label comes from the wrapper, not vue-select's generic “Search for option” aria-label |
 | Checkbox / radio / switch | positive labels only; an unselected radio group picks its first option; a multi-select checkbox group checks 1–2 **randomly chosen** options (optional groups too under “All fields”). Radio/checkbox groups are reported as **one row**, not one row per option |
 | Button-only choice groups (“Label as”, address type) | a small set of buttons is detected from the group label; one is clicked at random and reported as a single field |
@@ -130,13 +132,32 @@ For forms inside a dialog, start the fill with **right-click inside the dialog �
 
 The filler now waits for a stable modal, scopes the scan to the open dialog, re-resolves detached elements, retries hidden fields, and reports the concrete reason (`detached`, `display:none`, `aria-hidden ancestor`, `inert ancestor`) instead of a bare “not visible”. It also no longer blurs fields or sends Escape unless a dropdown is actually open.
 
-### Verification harness
+### Optional QA harness
+
+This harness is **not needed to use the extension**. For normal use, run `npm run build` and load `dist/` — no dev server. The harness only exists for manual QA and CI, and it is the only part of the repo that installs the private `@praxxys/vue-kit` package.
 
 ```bash
 npm run harness   # http://localhost:8093
 ```
 
-The harness mounts **real reka-ui components**, not static mocks: Select with an in-content search, Combobox with a separate trigger, input-only Combobox, RadioGroup, Checkbox, Switch, ToggleGroup, and a Dialog containing a Select plus the “Label as” button group. Fill it with the extension; the top-level form should reach 9/9, and the dialog should stay open with its own fields filled.
+The harness mounts **real packages**, not static mocks, in five sections:
+
+| Section | Packages |
+| --- | --- |
+| Native HTML | plain inputs, `<select multiple>`, radio, checkbox, date/month/time/range/color, file |
+| shadcn + reka | reka-ui Select, Combobox, RadioGroup, Checkbox, Switch, ToggleGroup, Dialog, and `vue-select` |
+| PRAXXYS Vue Kit | `PrxSelect`, `PrxSearchableSelect` (with a stubbed `searchRoute`), `PrxMultiSelect`, `PrxDatePicker`, `PrxFileUpload`, `PrxTextInput` |
+| vue-select / vue-multiselect | `vue-select` and `vue-multiselect` shapes |
+| Vue Date Picker | `@vuepic/vue-datepicker` |
+
+The kit is loaded from `node_modules` through a Vite alias, so the markup always matches the installed package. Install the private package first:
+
+```bash
+cp <admin-repo>/.npmrc .npmrc   # GitLab @praxxys registry token, gitignored
+npm install
+```
+
+Fill the page with the extension and compare the HUD against `docs/QA-CHECKLIST.md` §10. The shadcn section should reach 9/9, the dialog should stay open with its own fields filled, and each kit widget should report `prx-…` strategies.
 
 ### URL and coordinate detection
 
@@ -178,7 +199,7 @@ src/adapters/            text, choice, reka, vue-multiselect, vue-select, editor
 src/fixtures/            accept-aware file generation
 src/shared/              types, DOM helpers, seeded RNG, accept parser, bridge types
 public/icons/            extension logo (SVG + 16/32/48/128/512 PNGs)
-harness/                 real reka-ui/shadcn + vue-select harness (npm run harness)
+harness/                 real component harness for native/shadcn/reka/vue-kit/vue widgets (npm run harness)
 demo/form-zoo.html       standalone harness for all adapter shapes
 demo/file-zoo.html       accept-aware file generation harness
 demo/url-zoo.html        platform URL and latitude/longitude harness

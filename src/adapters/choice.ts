@@ -1,8 +1,8 @@
 import type { DetectedControl } from '../shared/types';
 import { clickSequence, isDisabled, normalizeText, setSelectValue, sleep, waitFor } from '../shared/dom';
-import type { Rng } from '../shared/random';
+import { Rng } from '../shared/random';
 import { NEGATIVE_TOGGLE, POSITIVE_TOGGLE, normalizeForMatch } from '../core/lexicon';
-import { fail, ok, skip, type FieldOutcome } from './types';
+import { fail, ok, skip, type DropdownIntent, type FieldOutcome } from './types';
 
 const radioGroups = new WeakMap<Element, string>();
 let groupCounter = 0;
@@ -40,7 +40,45 @@ function optionLabelFor(el: HTMLElement, group: HTMLElement): string {    if (el
     return '';
 }
 
-export function fillNativeSelect(control: DetectedControl, labels: string[]): FieldOutcome {
+/**
+ * A <select multiple> holds a set rather than one value. Pick one or two
+ * options, replace any current selection, and emit one change event.
+ */
+function fillMultipleSelect(
+    el: HTMLSelectElement,
+    options: HTMLOptionElement[],
+    intent: DropdownIntent,
+): FieldOutcome {
+    const rng = new Rng(intent.seed);
+    const normalized = intent.labels.map((label) => label.toLowerCase());
+    const preferred = options.filter((option) =>
+        normalized.some((label) => option.textContent!.trim().toLowerCase().includes(label)),
+    );
+    const pool = [...(preferred.length ? preferred : options)];
+    const picks: HTMLOptionElement[] = [];
+    const count = Math.max(1, Math.min(intent.count, pool.length));
+
+    for (let index = 0; index < count; index += 1) {
+        const pickAt = intent.policy === 'random' ? rng.int(0, pool.length - 1) : 0;
+        picks.push(pool.splice(pickAt, 1)[0]);
+    }
+
+    for (const option of Array.from(el.options)) option.selected = picks.includes(option);
+
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const labels = picks
+        .map((option) => option.textContent?.trim() ?? '')
+        .filter(Boolean);
+
+    return ok('native-select-multiple', labels.join(', '));
+}
+
+export function fillNativeSelect(
+    control: DetectedControl,
+    intent: DropdownIntent,
+): FieldOutcome {
     const el = control.el as HTMLSelectElement;
     if (isDisabled(el)) return skip('disabled');
 
@@ -49,19 +87,35 @@ export function fillNativeSelect(control: DetectedControl, labels: string[]): Fi
     );
 
     if (!options.length) return fail('no select options', true);
+    if (el.multiple) return fillMultipleSelect(el, options, intent);
 
-    const normalized = labels.map((label) => label.toLowerCase());
-    const match =
+    const normalized = intent.labels.map((label) => label.toLowerCase());
+    const matched =
         options.find((option) => normalized.includes(option.textContent!.trim().toLowerCase())) ??
         options.find((option) =>
             normalized.some((label) => option.textContent!.toLowerCase().includes(label)),
-        ) ??
-        options[0];
+        );
 
-    setSelectValue(el, match.value);
-    if (el.value !== match.value) return fail('select value did not apply');
+    let choice: HTMLOptionElement;
+    let strategy = 'native-select';
 
-    return ok(`native-select:${match.textContent?.trim()}`, match.textContent?.trim());
+    if (matched) {
+        choice = matched;
+    } else if (intent.policy === 'random') {
+        // Skip the value already on screen so the fill visibly changes the
+        // field, then fall back to the full list when there is only one option.
+        const changed = options.filter((option) => option.value !== el.value);
+        const pool = changed.length ? changed : options;
+        choice = pool[new Rng(intent.seed).int(0, pool.length - 1)];
+        strategy = 'native-select-random';
+    } else {
+        choice = options[0];
+    }
+
+    setSelectValue(el, choice.value);
+    if (el.value !== choice.value) return fail('select value did not apply');
+
+    return ok(`${strategy}:${choice.textContent?.trim()}`, choice.textContent?.trim());
 }
 
 export async function fillToggle(

@@ -118,11 +118,15 @@ Start at `https://dswd-web.praxxystech.com/auth/register` (or the local Nuxt app
 - [ ] No field is filled on the confirmation/submit step; you submit manually.
 - [ ] Multi-step form: only the visible step is filled; the extension never clicks Continue/Next.
 
-## 10. Reka / shadcn harness
+## 10. Component harness
 
 ```bash
 npm run harness   # http://localhost:8093
 ```
+
+The harness loads real packages: native controls, shadcn/reka, `@praxxys/vue-kit`, `vue-select`/`vue-multiselect`, and `@vuepic/vue-datepicker`. The kit is private; copy the GitLab `.npmrc` before installing (see README).
+
+### shadcn + reka + vue-select
 
 - [ ] Fill with Scope = All fields: Full Name, Notes, Region, Business Type, Sole Proprietor Type, Gender, Active, Published, View all fill (9/9).
 - [ ] Checkbox and switch state poll correctly (no false failures).
@@ -133,6 +137,29 @@ npm run harness   # http://localhost:8093
 - [ ] View uses the ToggleGroup (List/Grid).
 - [ ] Open the address dialog and fill: Full Name, Region, Label as fill; the dialog **stays open** and the top-level values are unchanged.
 - [ ] The vue-select “City” field fills (City One/Two/Three), proving the admin `BaseSearchableSelect` shape.
+
+### PRAXXYS Vue Kit
+
+- [ ] `PrxSelect` (Region) reports `prx-select` and its trigger text changes to the chosen option.
+- [ ] `PrxSearchableSelect` (City) reports `prx-searchable-select`; options load through the stubbed `searchRoute` after the debounce.
+- [ ] `PrxMultiSelect` (Business Types) reports `vue-multiselect` and selects 1–2 tags.
+- [ ] `PrxDatePicker` (Birthdate) opens the calendar and commits a date.
+- [ ] `PrxFileUpload` (Photo) generates a PNG that the kit accepts.
+- [ ] `PrxTextInput` (Notes) fills through the native setter.
+- [ ] No kit popup is left open after its field is reported.
+
+### Native HTML
+
+- [ ] Text, textarea, select, radio, checkbox and file fill.
+- [ ] `<select multiple>` selects one or two options and replaces the previous selection.
+- [ ] `date`, `month`, `time`, `range` and `color` inputs receive valid values.
+- [ ] Hidden, submit, button, reset and `week` inputs are not reported.
+
+### vue-select / vue-multiselect / Vue Date Picker
+
+- [ ] `vue-select` City fills and closes its menu.
+- [ ] `vue-multiselect` Skills picks two distinct tags.
+- [ ] Both `@vuepic/vue-datepicker` fields open the calendar, not the text fallback.
 
 ## 11. Motorcentral branches
 

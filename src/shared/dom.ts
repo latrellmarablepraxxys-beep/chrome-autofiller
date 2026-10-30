@@ -39,6 +39,37 @@ export function isDisabled(el: Element): boolean {
     );
 }
 
+const OPEN_MENU_SELECTOR = [
+    '[role="listbox"]',
+    '[role="menu"]',
+    '.vs__dropdown-menu',
+    '.multiselect__content-wrapper',
+    '[data-slot="select-content"]',
+    '[data-slot="combobox-content"]',
+].join(',');
+
+export function openDropdownMenus(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>(OPEN_MENU_SELECTOR)).filter(isVisible);
+}
+
+/**
+ * A dropdown left open can make the rest of the page aria-hidden, which would
+ * hide every other field from the scanner. Close it on the control that owns
+ * it, without sending Escape to the page when nothing is open (that would close
+ * a surrounding dialog).
+ */
+export function closeOpenDropdowns(trigger?: HTMLElement | null): void {
+    if (!openDropdownMenus().length) return;
+
+    const target =
+        trigger ??
+        (document.activeElement instanceof HTMLElement ? document.activeElement : document.body);
+
+    target.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true }),
+    );
+}
+
 function cssEscape(value: string): string {
     if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
         return CSS.escape(value);

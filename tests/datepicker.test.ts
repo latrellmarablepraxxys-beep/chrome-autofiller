@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fillDatePicker } from '../src/adapters/datepicker';
+import { chooseAllowedIso, fillDatePicker, readDateBounds } from '../src/adapters/datepicker';
 import { scanControls } from '../src/core/scanner';
+import { Rng } from '../src/shared/random';
 import type { DetectedControl } from '../src/shared/types';
 
 function control(el: HTMLElement, partial: Partial<DetectedControl> = {}): DetectedControl {
@@ -268,5 +269,102 @@ describe('date picker filling', () => {
         expect(outcome.strategy).toBe('native-date');
         expect(input.value).toBe('2026-10-29');
         expect(document.activeElement).toBe(input);
+    });
+
+    it('pulls a native date input inside its min/max range', async () => {
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.min = '2026-11-01';
+        input.max = '2026-11-30';
+        document.body.appendChild(input);
+
+        const outcome = await fillDatePicker(control(input), '2026-10-29');
+
+        expect(outcome.status).toBe('filled');
+        expect(input.value).toBe('2026-11-01');
+    });
+});
+
+describe('allowed dates in the picker', () => {
+    function mountMenu(): { input: HTMLInputElement; menu: HTMLElement } {
+        document.body.innerHTML = `
+            <div class="dp--main">
+                <div class="dp--input-wrap">
+                    <input data-test-id="dp-input" class="dp--input" value="" />
+                </div>
+            </div>
+            <div class="dp--menu-wrapper">
+                ${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+                    .map((day) => {
+                        const iso = `2026-10-${String(day).padStart(2, '0')}`;
+                        // 10/04 is the day the faker would normally target: the
+                        // app disallows it, so the adapter has to move.
+                        const disabled = day === 4;
+                        return `<div class="dp--cell${disabled ? ' dp--cell-disabled' : ''}" data-test-id="dp-${iso}">${day}</div>`;
+                    })
+                    .join('')}
+            </div>
+        `;
+
+        return {
+            input: document.querySelector<HTMLInputElement>('[data-test-id="dp-input"]')!,
+            menu: document.querySelector<HTMLElement>('.dp--menu-wrapper')!,
+        };
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('keeps a date the picker allows', () => {
+        const { input, menu } = mountMenu();
+
+        expect(chooseAllowedIso(menu, input, '2026-10-15', new Rng(1))).toBe('2026-10-15');
+    });
+
+    it('swaps a disabled day for a random day the picker allows', () => {
+        const { input, menu } = mountMenu();
+        const picks = new Set<string>();
+
+        for (let seed = 1; seed <= 12; seed += 1) {
+            const iso = chooseAllowedIso(menu, input, '2026-10-04', new Rng(seed));
+            expect(iso).not.toBe('2026-10-04');
+            expect(iso.startsWith('2026-10-')).toBe(true);
+            picks.add(iso);
+        }
+
+        expect(picks.size).toBeGreaterThan(1);
+    });
+
+    it('reads the allowed range from the input when the page exposes it', () => {
+        const { input, menu } = mountMenu();
+        input.setAttribute('data-min-date', '2026-11-01');
+        input.setAttribute('data-max-date', '2026-11-30');
+
+        expect(readDateBounds(input, menu).min?.getMonth()).toBe(10);
+        expect(readDateBounds(input, menu).max?.getDate()).toBe(30);
+    });
+
+    it('picks a random date inside a declared range', () => {
+        const { input, menu } = mountMenu();
+        input.setAttribute('min', '2026-11-01');
+        input.setAttribute('max', '2026-11-05');
+        const picks = new Set<string>();
+
+        for (let seed = 1; seed <= 12; seed += 1) {
+            const iso = chooseAllowedIso(menu, input, '2026-10-15', new Rng(seed));
+            expect(iso >= '2026-11-01').toBe(true);
+            expect(iso <= '2026-11-05').toBe(true);
+            picks.add(iso);
+        }
+
+        expect(picks.size).toBeGreaterThan(1);
+    });
+
+    it('clamps to a one-sided range', () => {
+        const { input, menu } = mountMenu();
+        input.setAttribute('max', '2026-09-30');
+
+        expect(chooseAllowedIso(menu, input, '2026-10-15', new Rng(3))).toBe('2026-09-30');
     });
 });

@@ -1,8 +1,8 @@
 import type { ControlKind, DetectedControl } from '../shared/types';
 import type { ModuleContext } from './module';
 import { normalizeForMatch, RULES, type Semantic } from './lexicon';
+import { DROPDOWN_KINDS } from '../adapters/registry';
 
-const DROPDOWN_KINDS: ControlKind[] = ['native-select', 'reka-combobox', 'vue-multiselect', 'vue-select'];
 const BARE_NAME = /^(name|title|display name|record name)$/;
 const ENTITY_NAME_PATTERNS = RULES.find(([semantic]) => semantic === 'entity_name')?.[1] ?? [];
 

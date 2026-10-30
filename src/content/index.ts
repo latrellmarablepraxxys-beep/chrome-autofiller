@@ -56,10 +56,12 @@ if (!window[GUARD]) {
                 : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
         const payload = await new Promise<{ report?: FillReport; error?: string }>((resolve) => {
+            // "All fields" on a large admin form opens far more dropdowns and
+            // pickers than "Required + content"; 60s was not enough headroom.
             const timer = setTimeout(() => {
                 pending.delete(requestId);
                 resolve({ error: 'autofill timed out' });
-            }, 60_000);
+            }, 180_000);
 
             pending.set(requestId, (result) => {
                 clearTimeout(timer);

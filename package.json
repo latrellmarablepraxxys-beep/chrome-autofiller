@@ -16,6 +16,7 @@
         "test:watch": "vitest"
     },
     "devDependencies": {
+        "@praxxys/vue-kit": "^0.0.1",
         "@types/chrome": "^0.0.287",
         "@types/node": "^26.6.5",
         "@vitejs/plugin-vue": "^5.2.4",

@@ -3,6 +3,15 @@ export type DropdownPolicy = 'first' | 'random' | 'profile';
 export type RunMode = 'fill' | 'inspect';
 export type FieldStatus = 'filled' | 'skipped' | 'failed' | 'detected';
 
+export type WidgetFlavor =
+    | 'native'
+    | 'shadcn'
+    | 'reka'
+    | 'prx-vue-kit'
+    | 'vue-select'
+    | 'vue-multiselect'
+    | 'vue-datepicker';
+
 export type ControlKind =
     | 'text'
     | 'textarea'
@@ -15,8 +24,11 @@ export type ControlKind =
     | 'password'
     | 'native-select'
     | 'reka-combobox'
+    | 'prx-select'
+    | 'prx-searchable-select'
     | 'vue-multiselect'
     | 'vue-select'
+    | 'color'
     | 'ckeditor'
     | 'tiptap'
     | 'file'
@@ -38,6 +50,7 @@ export interface FillOptions {
 export interface DetectedControl {
     el: HTMLElement;
     kind: ControlKind;
+    flavor?: WidgetFlavor;
     label: string;
     name: string;
     id: string;
@@ -58,6 +71,7 @@ export interface FieldResult {
     key: string;
     label: string;
     kind: ControlKind;
+    flavor?: WidgetFlavor;
     semantic: string;
     status: FieldStatus;
     reason?: string;

@@ -1,0 +1,187 @@
+- main [ref=f86e3]:
+  - heading "PRAXXYS Autofill harness" [level=1] [ref=f86e4]
+  - paragraph [ref=f86e5]:
+    - text: Every section mounts real component packages, not static mocks. Run a fill and check the HUD report against the per-family checklist in
+    - code [ref=f86e6]: docs/QA-CHECKLIST.md
+    - text: .
+  - navigation [ref=f86e7]:
+    - link "Native HTML" [ref=f86e8] [cursor=pointer]:
+      - /url: "#native"
+    - link "shadcn + reka" [ref=f86e9] [cursor=pointer]:
+      - /url: "#shadcn"
+    - link "PRAXXYS Vue Kit" [ref=f86e10] [cursor=pointer]:
+      - /url: "#vue-kit"
+    - link "vue-select / vue-multiselect" [ref=f86e11] [cursor=pointer]:
+      - /url: "#vue-widgets"
+    - link "Vue Date Picker" [ref=f86e12] [cursor=pointer]:
+      - /url: "#vue-datepicker"
+  - generic [ref=f86e13]:
+    - heading "native html" [level=2] [ref=f86e14]
+    - generic [ref=f86e15]:
+      - generic [ref=f86e16]:
+        - generic [ref=f86e17]: Full Name *
+        - textbox "Full Name *" [ref=f86e18]
+      - generic [ref=f86e19]:
+        - generic [ref=f86e20]: Bio
+        - textbox "Bio" [ref=f86e21]
+      - generic [ref=f86e22]:
+        - generic [ref=f86e23]: Status *
+        - combobox "Status *" [ref=f86e24]:
+          - option "Select status" [selected]
+          - option "Active"
+          - option "Draft"
+          - option "Archived"
+      - generic [ref=f86e25]:
+        - generic [ref=f86e26]: Tags
+        - listbox "Tags" [ref=f86e27]:
+          - option "Coffee" [ref=f86e28]
+          - option "Dessert" [ref=f86e29]
+          - option "Seasonal" [ref=f86e30]
+      - generic [ref=f86e31]:
+        - generic [ref=f86e32]: Published
+        - generic [ref=f86e33]:
+          - radio "Yes" [ref=f86e34]
+          - text: "Yes"
+        - generic [ref=f86e35]:
+          - radio "No" [ref=f86e36]
+          - text: "No"
+      - generic [ref=f86e37]:
+        - generic [ref=f86e38]: Birthday
+        - textbox "Birthday" [ref=f86e39]
+      - generic [ref=f86e40]:
+        - generic [ref=f86e41]: Start Month
+        - textbox "Start Month" [ref=f86e42]
+      - generic [ref=f86e43]:
+        - generic [ref=f86e44]: Start Time
+        - textbox "Start Time" [ref=f86e45]
+      - generic [ref=f86e46]:
+        - generic [ref=f86e47]: Volume
+        - slider "Volume" [ref=f86e48]: "50"
+      - generic [ref=f86e49]:
+        - generic [ref=f86e50]: Brand Color
+        - textbox "Brand Color" [ref=f86e51]: "#7c3aed"
+      - generic [ref=f86e52]:
+        - generic [ref=f86e53]: Photo
+        - button "Photo" [ref=f86e54]
+      - generic [ref=f86e56]:
+        - checkbox "Subscribe to updates" [ref=f86e57]
+        - text: Subscribe to updates
+    - generic [ref=f86e58]: "{ \"fullName\": \"\", \"status\": \"\", \"tags\": [], \"published\": \"\", \"birthday\": \"\", \"startMonth\": \"\" }"
+  - generic [ref=f86e59]:
+    - heading "shadcn + reka + vue-select" [level=2] [ref=f86e60]
+    - generic [ref=f86e61]:
+      - generic [ref=f86e62]:
+        - generic [ref=f86e63]: Full Name *
+        - textbox "Full Name *" [ref=f86e64]
+      - generic [ref=f86e65]:
+        - generic [ref=f86e66]: Notes
+        - textbox "Notes" [ref=f86e67]
+      - generic [ref=f86e68]:
+        - generic [ref=f86e69]: Region *
+        - combobox [ref=f86e70] [cursor=pointer]:
+          - generic: Select region
+          - generic [ref=f86e71]: ▾
+      - generic [ref=f86e72]:
+        - generic [ref=f86e73]: City *
+        - combobox "Search for option" [ref=f86e75]:
+          - searchbox [ref=f86e77]
+      - generic [ref=f86e80]:
+        - generic [ref=f86e81]: Business Type *
+        - generic [ref=f86e84]:
+          - combobox "Select business type here" [ref=f86e85]
+          - button "Show popup" [ref=f86e86] [cursor=pointer]: ▾
+      - generic [ref=f86e87]:
+        - generic [ref=f86e88]: Sole Proprietor Type
+        - combobox "Select proprietor type" [ref=f86e91]
+      - generic [ref=f86e92]:
+        - generic [ref=f86e93]: Gender *
+        - radiogroup [ref=f86e94]:
+          - generic [ref=f86e95]:
+            - radio "Male"
+            - text: Male
+          - generic [ref=f86e96]:
+            - radio "Female"
+            - text: Female
+      - generic [ref=f86e98]:
+        - checkbox "Active"
+        - text: Active
+      - generic [ref=f86e100]:
+        - checkbox "I agree to the terms *"
+        - text: I agree to the terms *
+      - generic [ref=f86e102]:
+        - checkbox "Subscribe to updates"
+        - text: Subscribe to updates
+      - generic [ref=f86e104]:
+        - checkbox "I have no middle name"
+        - text: I have no middle name
+      - generic [ref=f86e105]:
+        - generic [ref=f86e106]: Published
+        - switch
+      - generic [ref=f86e107]:
+        - generic [ref=f86e108]: View *
+        - group [ref=f86e109]:
+          - button "List" [ref=f86e110]
+          - button "Grid" [ref=f86e111]
+      - button "Open address dialog" [ref=f86e112]
+    - generic [ref=f86e113]: "{ \"fullName\": \"\", \"notes\": \"\", \"selectValue\": \"\", \"cityValue\": null, \"comboValue\": \"\", \"comboOnlyValue\": \"\", \"gender\": \"\", \"active\": false, \"agree\": false, \"subscribe\": false, \"noMiddle\": false, \"published\": false, \"view\": \"\", \"dialogOpen\": false, \"dialogFull\": \"\", \"dialogRegion\": \"\", \"dialogLabel\": \"\" }"
+  - generic [ref=f86e114]:
+    - heading "praxxys vue kit" [level=2] [ref=f86e115]
+    - generic [ref=f86e116]:
+      - generic [ref=f86e117]:
+        - generic [ref=f86e118]: Notes
+        - textbox "Notes" [ref=f86e122]
+      - generic [ref=f86e123]:
+        - generic [ref=f86e124]: Region *
+        - combobox [ref=f86e126] [cursor=pointer]
+      - generic [ref=f86e127]:
+        - generic [ref=f86e128]: City *
+        - generic [ref=f86e131]:
+          - textbox "Select city" [ref=f86e132]
+          - img [aria-hidden] [ref=f86e133] [cursor=pointer]
+      - generic [ref=f86e136]:
+        - generic [ref=f86e137]: Business Types *
+        - combobox [ref=f86e140]:
+          - generic [ref=f86e141] [cursor=pointer]
+          - generic [ref=f86e145]:
+            - textbox "-searchbox":
+              - /placeholder: Select business types
+            - generic [ref=f86e146]: Select business types
+      - generic [ref=f86e147]:
+        - generic [ref=f86e148]: Birthdate *
+        - generic [ref=f86e152]:
+          - combobox "Datepicker input" [ref=f86e153] [cursor=pointer]
+          - img [aria-hidden] [ref=f86e154] [cursor=pointer]
+      - generic [ref=f86e159]:
+        - generic [ref=f86e160]: Photo
+        - generic [ref=f86e162] [cursor=pointer]:
+          - paragraph [ref=f86e167]: Select a file or drag and drop
+          - paragraph [ref=f86e168]: Files (WebP) up to 2MB
+    - generic [ref=f86e169]: "{ \"region\": \"\", \"city\": null, \"businessTypes\": [], \"birthdate\": null, \"notes\": \"\" }"
+  - generic [ref=f86e170]:
+    - heading "vue-select + vue-multiselect" [level=2] [ref=f86e171]
+    - generic [ref=f86e172]:
+      - generic [ref=f86e173]:
+        - generic [ref=f86e174]: City *
+        - combobox "Search for option" [ref=f86e176]:
+          - searchbox [ref=f86e178]
+      - generic [ref=f86e181]:
+        - generic [ref=f86e182]: Skills
+        - combobox [ref=f86e183]:
+          - generic [ref=f86e184] [cursor=pointer]
+          - generic [ref=f86e185]:
+            - textbox "-searchbox":
+              - /placeholder: Select skills
+            - generic [ref=f86e186]: Select skills
+  - generic [ref=f86e187]:
+    - heading "vue date picker" [level=2] [ref=f86e188]
+    - generic [ref=f86e189]:
+      - generic [ref=f86e190]:
+        - generic [ref=f86e191]: Birthdate *
+        - generic [ref=f86e194]:
+          - combobox "Datepicker input" [ref=f86e195] [cursor=pointer]
+          - img [aria-hidden] [ref=f86e196] [cursor=pointer]
+      - generic [ref=f86e201]:
+        - generic [ref=f86e202]: Scheduled At
+        - generic [ref=f86e205]:
+          - combobox "Datepicker input" [ref=f86e206] [cursor=pointer]
+          - img [aria-hidden] [ref=f86e207] [cursor=pointer]

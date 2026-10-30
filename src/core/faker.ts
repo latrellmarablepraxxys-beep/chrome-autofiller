@@ -124,6 +124,10 @@ export function generateValue(
     rng: Rng,
     context?: GenerationContext,
 ): string {
+    if (control.kind === 'color') {
+        return `#${rng.int(0, 0xffffff).toString(16).padStart(6, '0')}`;
+    }
+
     switch (semantic) {
         case 'first_name':
             return rng.pick(FIRST_NAMES);

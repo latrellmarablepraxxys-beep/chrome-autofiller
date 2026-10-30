@@ -14,7 +14,11 @@ export function pickOption(
         if (option.classList.contains('multiselect__option--disabled')) return false;
         if (option.classList.contains('multiselect__option--selected')) return false;
         const text = textOf(option).toLowerCase();
-        return text.length > 0 && text !== 'no option found.' && text !== 'no results found.';
+        if (!text) return false;
+        if (text === 'no option found.' || text === 'no results found.') return false;
+        // Placeholder rows ("Select an option") are not choices.
+        if (/^(select|choose|pick) an? (option|item|value)$/.test(text)) return false;
+        return true;
     });
 
     if (!usable.length) return null;
@@ -29,10 +33,22 @@ export function pickOption(
 
     if (intent.policy === 'random') {
         const rng = new Rng(intent.seed);
-        return usable[rng.int(0, usable.length - 1)];
+        // "Random" should visibly change a field that already holds a value, so
+        // prefer options that are not selected yet — unless nothing else exists.
+        const unselected = usable.filter((option) => !isSelected(option));
+        const pool = unselected.length ? unselected : usable;
+        return pool[rng.int(0, pool.length - 1)];
     }
 
     return usable[0];
+}
+
+function isSelected(option: HTMLElement): boolean {
+    return (
+        option.getAttribute('aria-selected') === 'true' ||
+        option.getAttribute('data-state') === 'checked' ||
+        option.classList.contains('multiselect__option--selected')
+    );
 }
 
 export function visibleOptions(selector: string, root: ParentNode = document): HTMLElement[] {

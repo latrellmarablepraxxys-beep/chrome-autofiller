@@ -1,22 +1,14 @@
 import type { ControlKind, DetectedControl } from '../shared/types';
 import { cleanLabel, fieldKey, isDisabled, isVisible, normalizeText, readLabel } from '../shared/dom';
-import { insideDatePickerMenu, isDatePickerInput } from '../shared/picker';
+import { insideDatePickerMenu } from '../shared/picker';
+import { flavorFor, isOwnedByWidget, widgetFor, widgetProbes } from '../adapters/registry';
 
 const CANDIDATE_SELECTOR = [
+    ...widgetProbes(),
     'input',
     'textarea',
     'select',
     '[contenteditable="true"]',
-    '[role="combobox"]',
-    '[role="switch"]',
-    '[role="radio"]',
-    '[role="checkbox"]',
-    '[data-slot="combobox-trigger"]',
-    'button[aria-haspopup="listbox"]',
-    '[data-slot="toggle-group"] button',
-    '[role="group"] button[aria-pressed]',
-    '.multiselect',
-    '.vs__dropdown-toggle',
 ].join(',');
 
 const SKIP_ANCESTORS = [
@@ -35,13 +27,8 @@ function insideSkipped(el: Element): boolean {
 }
 
 function kindFor(el: HTMLElement): ControlKind | null {
-    // vue-datepicker renders a plain text input whose only hints are its
-    // classes/`data-test-id`; v14 also gives it role="combobox", which would
-    // otherwise be claimed by the Reka combobox branch below.
-    if (isDatePickerInput(el)) return 'date';
-
-    if (el.matches('.multiselect')) return 'vue-multiselect';
-    if (el.matches('.vs__dropdown-toggle')) return 'vue-select';
+    const widget = widgetFor(el);
+    if (widget) return widget.kind;
 
     if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') {
         if (el.closest('.ck-editor')) return 'ckeditor';
@@ -55,95 +42,78 @@ function kindFor(el: HTMLElement): ControlKind | null {
         return null;
     }
 
-    if (el.matches('[role="switch"]')) return 'switch';
-    if (el.matches('[role="radio"]')) return 'radio';
-    if (el.matches('[role="checkbox"]')) return 'checkbox';
-    if (el.matches('[data-slot="combobox-trigger"], button[aria-haspopup="listbox"]')) {
-        return 'reka-combobox';
-    }
-    if (el.matches('[data-slot="toggle-group"] button, [role="group"] button[aria-pressed]')) {
-        const group = el.closest('[data-slot="toggle-group"], [role="group"]');
-        if (
-            !group ||
-            group.querySelector('button[aria-pressed], button[data-state]') !== el
-        ) {
-            return null;
-        }
-        if (!el.closest('form')) return null;
-        return 'toggle-group';
-    }
-    if (el.matches('[role="combobox"]')) {
-        // Only dropdown triggers. Reka's CommandInput is also role=combobox.
-        if (el.tagName === 'BUTTON' || el.hasAttribute('aria-haspopup')) {
-            return 'reka-combobox';
-        }
-
-        // Input-only reka Combobox (no separate trigger).
-        if (el instanceof HTMLInputElement && el.hasAttribute('aria-expanded')) {
-            const wrapper = el.closest('[data-slot="combobox"]');
-            if (wrapper && !wrapper.querySelector('[data-slot="combobox-trigger"]')) {
-                return 'reka-combobox';
-            }
-        }
-
-        return null;
-    }
+    if (el.matches('[role="combobox"]')) return null;
 
     if (el instanceof HTMLSelectElement) return 'native-select';
-
     if (el instanceof HTMLTextAreaElement) return 'textarea';
-
-    if (el instanceof HTMLInputElement) {
-        switch (el.type) {
-            case 'file':
-                return 'file';
-            case 'checkbox':
-                return 'checkbox';
-            case 'radio':
-                return 'radio';
-            case 'hidden':
-            case 'submit':
-            case 'button':
-            case 'reset':
-            case 'image':
-            case 'search':
-                return null;
-            case 'email':
-                return 'email';
-            case 'tel':
-                return 'tel';
-            case 'url':
-                return 'url';
-            case 'number':
-                return 'number';
-            case 'date':
-                return 'date';
-            case 'time':
-                return 'time';
-            case 'password':
-                return 'password';
-            default: {
-                const inputmode = (el.getAttribute('inputmode') ?? '').toLowerCase();
-                if (inputmode === 'numeric' || inputmode === 'decimal') return 'number';
-
-                const pattern = el.getAttribute('pattern') ?? '';
-                if (pattern.includes('0-9') || pattern.includes('\\d')) return 'number';
-
-                return 'text';
-            }
-        }
-    }
+    if (el instanceof HTMLInputElement) return inputKind(el);
 
     return null;
 }
 
-function isInsideOtherControl(el: HTMLElement): boolean {    if (el.matches('.vs__dropdown-toggle')) return false;
-    if (el.matches('.multiselect')) return false;
+/**
+ * Native input types the engine understands. Types without a reliable fill
+ * strategy stay undetected instead of failing mid-run.
+ */
+function inputKind(el: HTMLInputElement): ControlKind | null {
+    switch (el.type) {
+        case 'file':
+            return 'file';
+        case 'checkbox':
+            return 'checkbox';
+        case 'radio':
+            return 'radio';
+        case 'email':
+            return 'email';
+        case 'tel':
+            return 'tel';
+        case 'url':
+            return 'url';
+        case 'number':
+        case 'range':
+            return 'number';
+        case 'date':
+        case 'month':
+        case 'datetime-local':
+            return 'date';
+        case 'time':
+            return 'time';
+        case 'color':
+            return 'color';
+        case 'password':
+            return 'password';
+        case 'hidden':
+        case 'submit':
+        case 'button':
+        case 'reset':
+        case 'image':
+        case 'search':
+        case 'week':
+            return null;
+        default:
+            return textLikeKind(el);
+    }
+}
 
-    const owner = el.closest('.vs__dropdown-toggle, .multiselect, .ck-toolbar, .tiptap-toolbar, .dp__menu');
-    if (!owner) return false;
+function textLikeKind(el: HTMLInputElement): ControlKind {
+    const inputmode = (el.getAttribute('inputmode') ?? '').toLowerCase();
+    if (inputmode === 'numeric' || inputmode === 'decimal') return 'number';
 
-    return owner !== el;
+    const pattern = el.getAttribute('pattern') ?? '';
+    if (pattern.includes('0-9') || pattern.includes('\\d')) return 'number';
+
+    return 'text';
+}
+
+/**
+ * Editors and composite widgets contain inputs that belong to the parent
+ * control; only the root is reported.
+ */
+function isInsideOtherControl(el: HTMLElement): boolean {
+    if (isOwnedByWidget(el)) return true;
+
+    const editor = el.closest('.ck-toolbar, .tiptap-toolbar');
+    return editor !== null && editor !== el;
 }
 
 function radioGroupLabel(el: HTMLElement): string {
@@ -272,6 +242,7 @@ function toControl(el: HTMLElement, index: number): DetectedControl | null {
     return {
         el,
         kind,
+        flavor: flavorFor(el, kind),
         label,
         name,
         id,
@@ -342,6 +313,7 @@ export function scanControls(): DetectedControl[] {
         controls.push({
             el: button,
             kind: 'button-choice',
+            flavor: 'native',
             label: groupLabel,
             name: '',
             id: '',

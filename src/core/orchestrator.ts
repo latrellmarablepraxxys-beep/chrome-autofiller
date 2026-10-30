@@ -1,4 +1,5 @@
 import type {
+    ControlKind,
     DetectedControl,
     FieldResult,
     FillOptions,
@@ -6,7 +7,7 @@ import type {
     RunMode,
 } from '../shared/types';
 import { hashString, Rng } from '../shared/random';
-import { cleanLabel, isDisabled, sleep, visibilityReason } from '../shared/dom';
+import { cleanLabel, closeOpenDropdowns, isDisabled, sleep, visibilityReason } from '../shared/dom';
 import { classify, isDropdownKind, profileValueFor } from './classifier';
 import { generateValue, type GenerationContext } from './faker';
 import { detectModule } from './module';
@@ -23,10 +24,12 @@ import {
     fillToggleGroup,
 } from '../adapters/choice';
 import { fillReka } from '../adapters/reka';
+import { fillPrxSearchableSelect, fillPrxSelect } from '../adapters/prx';
 import { fillVueMultiselect } from '../adapters/vue-multiselect';
 import { fillVueSelect } from '../adapters/vue-select';
 import { fillEditor } from '../adapters/editors';
 import { fillFile } from '../adapters/file';
+import { DROPDOWN_KINDS } from '../adapters/registry';
 import { fail, skip, skipRetry, type DropdownIntent, type FieldOutcome } from '../adapters/types';
 import { buildReport } from './report';
 
@@ -35,7 +38,7 @@ interface Handled {
     semantic: Semantic;
 }
 
-function inScope(
+export function inScope(
     control: DetectedControl,
     options: FillOptions,
     module: ReturnType<typeof detectModule>,
@@ -88,12 +91,7 @@ function dropdownIntent(
               .filter(Boolean)
         : [];
 
-    const count =
-        control.kind === 'vue-multiselect' || control.kind === 'vue-select'
-            ? control.multiple
-                ? 2
-                : 1
-            : 1;
+    const count = control.multiple ? 2 : 1;
 
     return {
         labels,
@@ -101,6 +99,22 @@ function dropdownIntent(
         seed: rng.int(1, 2 ** 31 - 1),
         count,
     };
+}
+
+/**
+ * Native month and datetime-local inputs accept their own value shapes, so the
+ * calendar adapter only runs for date inputs and date-picker widgets.
+ */
+function fillNativeDate(control: DetectedControl, iso: string): FieldOutcome {
+    const el = control.el as HTMLInputElement;
+    const value =
+        el.type === 'month'
+            ? iso.slice(0, 7)
+            : el.type === 'datetime-local'
+              ? `${iso}T09:00`
+              : iso;
+
+    return fillText(control, value);
 }
 
 async function fillControl(
@@ -144,18 +158,21 @@ async function fillControl(
             case 'file':
                 return { outcome: await fillFile(control, rng), semantic };
 
-            case 'date':
-                return {
-                    outcome: await fillDatePicker(
-                        control,
-                        profile ?? generateValue('date', control, rng, generation),
-                    ),
-                    semantic,
-                };
+            case 'date': {
+                const value = profile ?? generateValue('date', control, rng, generation);
+                const outcome =
+                    control.el instanceof HTMLInputElement && control.el.type !== 'date'
+                        ? fillNativeDate(control, value)
+                        : await fillDatePicker(control, value, rng);
+                return { outcome, semantic };
+            }
 
             case 'native-select':
                 return {
-                    outcome: fillNativeSelect(control, dropdownIntent(control, options, rng, profile).labels),
+                    outcome: fillNativeSelect(
+                        control,
+                        dropdownIntent(control, options, rng, profile),
+                    ),
                     semantic,
                 };
 
@@ -164,6 +181,16 @@ async function fillControl(
                     outcome: await fillReka(control, dropdownIntent(control, options, rng, profile)),
                     semantic,
                 };
+
+            case 'prx-select':
+            case 'prx-searchable-select': {
+                const intent = dropdownIntent(control, options, rng, profile);
+                const outcome =
+                    control.kind === 'prx-select'
+                        ? await fillPrxSelect(control, intent)
+                        : await fillPrxSearchableSelect(control, intent);
+                return { outcome, semantic };
+            }
 
             case 'vue-multiselect':
                 return {
@@ -239,6 +266,7 @@ function toFieldResult(control: DetectedControl, handled: Handled): FieldResult 
         key: control.key,
         label: control.label || control.name || control.id || control.key,
         kind: control.kind,
+        flavor: control.flavor,
         semantic: handled.semantic,
         status: handled.outcome.status,
         reason: handled.outcome.reason,
@@ -284,6 +312,7 @@ function groupFieldResults(
                 key: `group-${rows.length + 1}`,
                 label: label || representative.label,
                 kind: representative.kind,
+                flavor: representative.flavor,
                 semantic: handled.get(representative.key)!.semantic,
                 status: outcome.status,
                 reason: outcome.reason,
@@ -333,11 +362,13 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
         const inspectModule = detectModule(inspectControls);
         const fields = inspectControls.map((control) => {
             const semantic = classify(control, inspectModule);
-            annotateControl(control.el, `${semantic} · ${control.kind}`);
+            const kind = control.flavor ? `${control.kind} · ${control.flavor}` : control.kind;
+            annotateControl(control.el, `${semantic} · ${kind}`);
             return {
                 key: control.key,
                 label: control.label || control.name || control.id || control.key,
                 kind: control.kind,
+                flavor: control.flavor,
                 semantic,
                 status: 'detected' as const,
             };
@@ -356,8 +387,31 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
     const radioGroups = new Set<string>();
     const checkboxGroups = new Set<string>();
 
+    // A control that cannot be filled yet (disabled until another field is set,
+    // options still loading) gets one second chance. More than that just makes
+    // the form visibly flicker and makes "All fields" runs time out.
+    const MAX_ATTEMPTS = 2;
+    const MAX_PASSES = 3;
+    const attempts = new Map<string, number>();
+    const lastResult = new Map<string, Handled>();
+
+    const settleDropdown = async (control: DetectedControl, handledItem: Handled): Promise<void> => {
+        if (
+            handledItem.outcome.status !== 'filled' ||
+            !DROPDOWN_KINDS.includes(control.kind)
+        ) {
+            return;
+        }
+
+        // Dependent option lists are fetched by the app after a selection.
+        await sleep(700);
+        // Never leave a listbox open: it hides the rest of the form.
+        closeOpenDropdowns(control.el);
+        await sleep(40);
+    };
+
     let queue = pending;
-    for (let pass = 0; pass < 7; pass += 1) {
+    for (let pass = 0; pass < MAX_PASSES; pass += 1) {
         const retry: DetectedControl[] = [];
 
         for (const control of queue) {
@@ -371,29 +425,31 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
                 checkboxGroups,
                 generation,
             );
-            if (result.outcome.retryable && pass < 6) {
+
+            const tries = (attempts.get(control.key) ?? 0) + 1;
+            attempts.set(control.key, tries);
+            lastResult.set(control.key, result);
+
+            if (result.outcome.retryable && tries < MAX_ATTEMPTS) {
                 retry.push(control);
                 continue;
             }
 
             handled.set(control.key, result);
-
-            if (
-                result.outcome.status === 'filled' &&
-                ['reka-combobox', 'vue-select', 'vue-multiselect', 'native-select'].includes(
-                    control.kind,
-                )
-            ) {
-                // Dependent option lists are fetched by the app after a selection.
-                await sleep(700);
-            }
+            await settleDropdown(control, result);
         }
 
         if (!retry.length) break;
 
-        await sleep(1000);
+        await sleep(600);
         const fresh = scanControls();
         queue = retry.map((control) => fresh.find((item) => item.key === control.key) ?? control);
+    }
+
+    // A field that was still waiting on its last attempt must still appear in
+    // the report; otherwise "All fields" silently drops it.
+    for (const [key, result] of lastResult) {
+        if (!handled.has(key)) handled.set(key, result);
     }
 
     // Conditional fields can appear (or become required) after a checkbox,
@@ -425,14 +481,7 @@ export async function execute(mode: RunMode, options: FillOptions): Promise<Fill
                 allControls.push(control);
             }
 
-            if (
-                result.outcome.status === 'filled' &&
-                ['reka-combobox', 'vue-select', 'vue-multiselect', 'native-select'].includes(
-                    control.kind,
-                )
-            ) {
-                await sleep(250);
-            }
+            await settleDropdown(control, result);
         }
     }
 
