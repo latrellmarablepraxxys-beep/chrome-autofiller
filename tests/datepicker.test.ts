@@ -368,3 +368,220 @@ describe('allowed dates in the picker', () => {
         expect(chooseAllowedIso(menu, input, '2026-10-15', new Rng(3))).toBe('2026-09-30');
     });
 });
+
+describe('time picker filling', () => {
+    interface TimeFake {
+        inputs: HTMLInputElement[];
+        menu: HTMLElement;
+        start: HTMLInputElement;
+        end?: HTMLInputElement;
+    }
+
+    /**
+     * Stand-in for vue-datepicker in `time-picker` mode (v13/v14 DOM): one
+     * `.dp--time-input` column set per range slot, with hour/minute overlays
+     * and an AM/PM button, all driven by `data-test-id` toggles.
+     */
+    function mountTimePicker(options: { range?: boolean } = {}): TimeFake {
+        const range = Boolean(options.range);
+        document.body.innerHTML = `
+            <div class="dp--main">
+                <div class="dp--input-wrap">
+                    <input data-test-id="dp-input" class="dp--input" role="combobox" aria-haspopup="dialog" aria-expanded="false" />
+                </div>
+                ${
+                    range
+                        ? '<div class="dp--input-wrap"><input data-test-id="dp-input" class="dp--input" role="combobox" aria-haspopup="dialog" aria-expanded="false" /></div>'
+                        : ''
+                }
+            </div>
+            <div class="dp--outer-menu-wrap dp--menu-wrapper" hidden></div>
+        `;
+
+        const inputs = Array.from(
+            document.querySelectorAll<HTMLInputElement>('[data-test-id^="dp-input"]'),
+        );
+        const menu = document.querySelector<HTMLElement>('.dp--outer-menu-wrap')!;
+
+        const times = [
+            { hours: 9, minutes: 30, mer: 'AM' },
+            { hours: 10, minutes: 30, mer: 'AM' },
+        ];
+        const overlay = { hours: false, minutes: false };
+        const state = { open: false };
+
+        const pad = (value: number) => String(value).padStart(2, '0');
+        const display = (t: (typeof times)[number]) =>
+            `${pad(t.hours % 12 || 12)}:${pad(t.minutes)} ${t.mer}`;
+
+        // Build the DOM once and patch state in place (like Vue does), so the
+        // adapter's element references stay live across interactions.
+        const render = () => {
+            if (!menu.dataset.built) {
+                menu.dataset.built = '1';
+                const orders = range ? [0, 1] : [0];
+                menu.innerHTML = `
+                    <div class="dp--tp-wrap">
+                        ${orders
+                            .map(
+                                (order) => `
+                            <div class="dp--time-input" data-time-root="${order}">
+                                <div class="dp--time-col">
+                                    <button type="button" data-act="hours-toggle" data-order="${order}" data-test-id="hours-toggle-overlay-btn-${order}" aria-expanded="false">00</button>
+                                </div>
+                                <div class="dp--time-col">
+                                    <button type="button" data-act="minutes-toggle" data-order="${order}" data-test-id="minutes-toggle-overlay-btn-${order}" aria-expanded="false">00</button>
+                                </div>
+                                <button type="button" class="dp--pm-am-button" data-act="ampm" data-order="${order}">AM</button>
+                                <div class="dp--overlay" data-overlay="hours" hidden>
+                                    ${Array.from({ length: 12 }, (_, index) => index + 1)
+                                        .map(
+                                            (hour) =>
+                                                `<div class="dp--overlay-cell" data-act="hour-cell" data-order="${order}" data-value="${hour}">${pad(hour)}</div>`,
+                                        )
+                                        .join('')}
+                                </div>
+                                <div class="dp--overlay" data-overlay="minutes" hidden>
+                                    ${Array.from({ length: 60 }, (_, index) => index)
+                                        .map(
+                                            (minute) =>
+                                                `<div class="dp--overlay-cell" data-act="minute-cell" data-order="${order}" data-value="${minute}">${pad(minute)}</div>`,
+                                        )
+                                        .join('')}
+                                </div>
+                            </div>
+                        `,
+                            )
+                            .join('')}
+                    </div>
+                    <div class="dp--action-row">
+                        <button type="button" data-act="select" data-test-id="select-button">Select</button>
+                    </div>
+                `;
+            }
+
+            const orders = range ? [0, 1] : [0];
+            for (const order of orders) {
+                const root = menu.querySelector<HTMLElement>(`[data-time-root="${order}"]`)!;
+                const time = times[order];
+
+                const hoursToggle = root.querySelector<HTMLElement>(
+                    `[data-test-id="hours-toggle-overlay-btn-${order}"]`,
+                )!;
+                const minutesToggle = root.querySelector<HTMLElement>(
+                    `[data-test-id="minutes-toggle-overlay-btn-${order}"]`,
+                )!;
+
+                hoursToggle.textContent = pad(time.hours % 12 || 12);
+                hoursToggle.setAttribute('aria-expanded', String(overlay.hours));
+                minutesToggle.textContent = pad(time.minutes);
+                minutesToggle.setAttribute('aria-expanded', String(overlay.minutes));
+
+                root.querySelector<HTMLElement>('.dp--pm-am-button')!.textContent = time.mer;
+                root.querySelector<HTMLElement>('[data-overlay="hours"]')!.hidden = !overlay.hours;
+                root.querySelector<HTMLElement>('[data-overlay="minutes"]')!.hidden = !overlay.minutes;
+
+                inputs[order].value = display(time);
+            }
+        };
+
+        const setOpen = (open: boolean) => {
+            state.open = open;
+            menu.hidden = !open;
+            if (open) render();
+        };
+
+        inputs.forEach((input) => input.addEventListener('click', () => setOpen(!state.open)));
+
+        menu.addEventListener('click', (event) => {
+            const el = (event.target as HTMLElement).closest<HTMLElement>('[data-act]');
+            if (!el) return;
+
+            const order = Number(el.dataset.order ?? 0);
+            const time = times[order];
+
+            switch (el.dataset.act) {
+                case 'hours-toggle':
+                    overlay.minutes = false;
+                    overlay.hours = !overlay.hours;
+                    render();
+                    return;
+                case 'minutes-toggle':
+                    overlay.hours = false;
+                    overlay.minutes = !overlay.minutes;
+                    render();
+                    return;
+                case 'ampm':
+                    time.mer = time.mer === 'AM' ? 'PM' : 'AM';
+                    time.hours = time.mer === 'PM' ? (time.hours % 12) + 12 : time.hours % 12;
+                    render();
+                    return;
+                case 'hour-cell': {
+                    const value = Number(el.dataset.value);
+                    time.hours =
+                        time.mer === 'PM'
+                            ? value === 12
+                                ? 12
+                                : value + 12
+                            : value === 12
+                              ? 0
+                              : value;
+                    overlay.hours = false;
+                    render();
+                    return;
+                }
+                case 'minute-cell':
+                    time.minutes = Number(el.dataset.value);
+                    overlay.minutes = false;
+                    render();
+                    return;
+                case 'select':
+                    setOpen(false);
+                    return;
+                default:
+                    return;
+            }
+        });
+
+        return {
+            inputs,
+            menu,
+            start: inputs[0],
+            end: inputs[1] as HTMLInputElement | undefined,
+        };
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('fills a time picker through the hour/minute overlays', async () => {
+        const { start, menu } = mountTimePicker();
+
+        const outcome = await fillDatePicker(control(start), '10:30 AM');
+
+        expect(outcome.status).toBe('filled');
+        expect(outcome.strategy).toBe('date-picker-time');
+        expect(start.value).toBe('10:30 AM');
+        expect(menu.hidden).toBe(true);
+    }, 20000);
+
+    it('fills both ends of a time range', async () => {
+        const { start, end } = mountTimePicker({ range: true });
+
+        const outcome = await fillDatePicker(control(start), '09:15 AM');
+
+        expect(outcome.status).toBe('filled');
+        expect(start.value).toBe('09:15 AM');
+        expect(end?.value).toBe('10:15 AM');
+    }, 20000);
+
+    it('uses a sensible default when the value is not a time', async () => {
+        const { start } = mountTimePicker();
+
+        const outcome = await fillDatePicker(control(start), '2026-10-29');
+
+        expect(outcome.status).toBe('filled');
+        expect(start.value).toBe('09:30 AM');
+    }, 20000);
+});

@@ -87,7 +87,7 @@ Caveats on real domains:
 | Video / map / social URLs | YouTube/Vimeo watch or embed, Google Maps share or embed, platform-correct social URLs; real demo IDs where embedding matters. These fill even when the field is optional (e.g. a product’s Video Link). |
 | Latitude / longitude / coordinates | one paired point per form; 6-decimal lat/lng, `lat,lng` for a single field; the map URL reuses the same point |
 | Number-only (`inputmode=numeric`) | digits only; PhilSys uses 16 digits, numeric IDs use `maxlength` |
-| Date | native `input[type=date]` (ISO), or `@vuepic/vue-datepicker` v9–v14 driven through its calendar: click the `dp-YYYY-MM-DD` cell, use the month/year overlays or nav arrows for far dates, then commit with the action row. Birthdates are always in the past. |
+| Date / time | native `input[type=date]` (ISO), or `@vuepic/vue-datepicker` v9–v14 driven through its calendar: click the `dp-YYYY-MM-DD` cell, use the month/year overlays or nav arrows for far dates, then commit with the action row. `time-picker` (single or range) is filled through the hour/minute overlays and the AM/PM button. Birthdates are always in the past. |
 | Native select | first valid option (or profile match) + `change`; `<select multiple>` replaces the selection with 1–2 options |
 | Admin `BaseSelector` (reka Command) | open `[role=combobox]`, pick `[role=option]`, verify trigger text |
 | Web `BaseSelector` (reka Select) | keyboard: Enter opens, arrows move, Enter commits (synthetic pointer clicks do not commit) |

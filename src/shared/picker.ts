@@ -83,6 +83,14 @@ export const DP_PREV_BUTTON = '[data-dp-element="action-prev"]';
 export const DP_NEXT_BUTTON = '[data-dp-element="action-next"]';
 export const DP_OVERLAY_CELL = '.dp--overlay-cell, .dp__overlay_cell';
 
+/** One time column set (hours/minutes/seconds + AM/PM), per range slot. */
+export const DP_TIME_INPUT = '.dp--time-input, .dp__time_input';
+export const DP_PM_AM_BUTTON = '.dp--pm-am-button, .dp__pm_am_button';
+
+export function dpTimeToggleSelector(type: 'hours' | 'minutes', order: number): string {
+    return `[data-test-id="${type}-toggle-overlay-btn-${order}"]`;
+}
+
 export function isDatePickerInput(el: Element): boolean {
     return el instanceof HTMLElement && el.matches(DP_INPUT_SELECTOR);
 }

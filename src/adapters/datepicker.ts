@@ -15,16 +15,20 @@ import {
     parseFormatHint,
     toIsoDate,
 } from '../shared/dateformat';
+import { addMinutes, parseTime, padTime, timeLooksApplied, type TimeValue } from '../shared/time';
 import { Rng, hashString } from '../shared/random';
 import {
     DP_NEXT_BUTTON,
     DP_OVERLAY_CELL,
+    DP_PM_AM_BUTTON,
     DP_PREV_BUTTON,
     DP_SELECT_BUTTON,
+    DP_TIME_INPUT,
     dpCellDisabled,
     dpCellIso,
     dpCellSelector,
     dpEnabledDayCells,
+    dpTimeToggleSelector,
     isDatePickerInput,
     pickerMenu,
 } from '../shared/picker';
@@ -48,6 +52,9 @@ const MONTH_NAMES_LIST = [
 ];
 
 const MONTH_NAMES = new Set(MONTH_NAMES_LIST);
+
+/** Fallback when a time picker gets no usable value (e.g. a date profile). */
+const TIME_DEFAULT: TimeValue = { hours: 9, minutes: 30 };
 
 function pressKey(el: HTMLElement, key: 'Enter' | 'Escape'): void {
     const keyCode = key === 'Enter' ? 13 : 27;
@@ -382,6 +389,93 @@ async function commitPicker(input: HTMLInputElement): Promise<void> {
     await sleep(220);
 }
 
+async function openTimeOverlay(
+    root: HTMLElement,
+    type: 'hours' | 'minutes',
+    order: number,
+): Promise<void> {
+    const toggle = root.querySelector<HTMLElement>(dpTimeToggleSelector(type, order));
+    if (toggle && toggle.getAttribute('aria-expanded') !== 'true') {
+        clickSequence(toggle);
+        await sleep(140);
+    }
+}
+
+async function closeTimeOverlay(
+    root: HTMLElement,
+    type: 'hours' | 'minutes',
+    order: number,
+): Promise<void> {
+    const toggle = root.querySelector<HTMLElement>(dpTimeToggleSelector(type, order));
+    if (toggle && toggle.getAttribute('aria-expanded') === 'true') {
+        clickSequence(toggle);
+        await sleep(120);
+    }
+}
+
+async function overlayCellByText(
+    root: HTMLElement,
+    text: string,
+    timeout: number,
+): Promise<HTMLElement | null> {
+    return waitFor(() => {
+        const cell = Array.from(root.querySelectorAll<HTMLElement>(DP_OVERLAY_CELL)).find(
+            (item) => isVisible(item) && normalizeText(item.textContent) === text,
+        );
+        return cell ?? null;
+    }, timeout);
+}
+
+/** Fill one time column set (one end of a range, or the single value). */
+async function fillTimeRoot(
+    root: HTMLElement,
+    order: number,
+    target: TimeValue,
+): Promise<boolean> {
+    const ampm = root.querySelector<HTMLElement>(DP_PM_AM_BUTTON);
+
+    if (ampm) {
+        const wanted = target.hours < 12 ? 'AM' : 'PM';
+        const shown = normalizeText(ampm.textContent).toUpperCase();
+        if (shown && shown !== wanted) {
+            clickSequence(ampm);
+            await sleep(160);
+        }
+    }
+
+    // Cells for hours and minutes coexist in the DOM once both overlays have
+    // been opened; pick hours first so the hour overlay closes before minutes.
+    await closeTimeOverlay(root, 'minutes', order);
+    await openTimeOverlay(root, 'hours', order);
+    const hourText = ampm ? padTime(target.hours % 12 || 12) : padTime(target.hours);
+    const hourCell = await overlayCellByText(root, hourText, 800);
+    if (!hourCell) return false;
+    clickSequence(hourCell);
+    await sleep(180);
+
+    await openTimeOverlay(root, 'minutes', order);
+    const minuteCell = await overlayCellByText(root, padTime(target.minutes), 800);
+    if (!minuteCell) return false;
+    clickSequence(minuteCell);
+    await sleep(180);
+
+    return true;
+}
+
+/** Fill every time column set in the open menu (range pickers render two). */
+async function pickViaTime(menu: HTMLElement, target: TimeValue): Promise<boolean> {
+    const roots = Array.from(menu.querySelectorAll<HTMLElement>(DP_TIME_INPUT)).filter(isVisible);
+    if (!roots.length) return false;
+
+    let applied = false;
+    for (const [order, root] of roots.entries()) {
+        const end = order === 0 ? target : addMinutes(target, 60);
+        if (await fillTimeRoot(root, order, end)) applied = true;
+    }
+
+    return applied;
+}
+
 async function fillViaText(
     input: HTMLInputElement,
     control: DetectedControl,
@@ -427,9 +521,11 @@ export async function fillDatePicker(
     if (isDisabled(el)) return skip('disabled');
 
     const iso = toIsoDate(raw);
-    if (!iso) return fail(`unparseable date: ${raw}`);
+    const time = parseTime(raw);
+    if (!iso && !time) return fail(`unparseable date or time: ${raw}`);
 
     if (el instanceof HTMLInputElement && el.type === 'date') {
+        if (!iso) return fail(`unparseable date: ${raw}`);
         const bounds = readDateBounds(el, null);
         const value = bounds.min || bounds.max ? clampIso(iso, bounds) : iso;
 
@@ -445,14 +541,33 @@ export async function fillDatePicker(
         const menu = await openPicker(el);
 
         if (menu) {
-            const targetIso = chooseAllowedIso(menu, el, iso, rng);
-            const applied = await pickViaCalendar(menu, targetIso, rng);
-            if (applied) {
+            const hasTime = Array.from(menu.querySelectorAll<HTMLElement>(DP_TIME_INPUT)).some(
+                isVisible,
+            );
+            const hasDayCells = Boolean(menu.querySelector<HTMLElement>('[data-test-id^="dp-"]'));
+
+            let dateApplied = false;
+            let dateIso = iso;
+            if (iso && (!hasTime || hasDayCells)) {
+                dateIso = chooseAllowedIso(menu, el, iso, rng);
+                dateApplied = await pickViaCalendar(menu, dateIso, rng);
+            }
+
+            const timeTarget = time ?? TIME_DEFAULT;
+            const timeApplied = hasTime && (await pickViaTime(menu, timeTarget));
+
+            if (dateApplied || timeApplied) {
                 await commitPicker(el);
                 await sleep(120);
 
                 const value = el.value;
-                if (value || dateLooksApplied(value, targetIso)) {
+                if (
+                    timeApplied &&
+                    (value || timeLooksApplied(value, timeTarget.hours, timeTarget.minutes))
+                ) {
+                    return ok('date-picker-time', value);
+                }
+                if (dateApplied && dateIso && (value || dateLooksApplied(value, dateIso))) {
                     return ok('date-picker', value);
                 }
             }
@@ -462,8 +577,8 @@ export async function fillDatePicker(
     }
 
     if (el.readOnly) {
-        return picker ? fail('picker did not commit the date') : skip('read-only');
+        return picker ? fail('picker did not commit the value') : skip('read-only');
     }
 
-    return fillViaText(el, control, iso);
+    return iso ? fillViaText(el, control, iso) : fail('time picker did not commit the value');
 }
